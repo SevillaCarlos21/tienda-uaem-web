@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>UAEM Store Web - Acceso Institucional</title>
+  
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
+  
+  <link rel="stylesheet" href="main.css">
+
+  <!-- CDN de Supabase y SweetAlert2 (Van antes de main.js) -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+  <style>
+    body {
+      background: linear-gradient(135deg, #002b49 0%, #001829 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .auth-card {
+      background: #ffffff;
+      width: 100%;
+      max-width: 480px;
+      border-radius: 12px;
+      box-shadow: 0 15px 35px rgba(0, 0, 0, 0.3);
+      padding: 30px 25px;
+      border-top: 5px solid #d97706;
+    }
+    .auth-header {
+      text-align: center;
+      margin-bottom: 25px;
+    }
+    .auth-header img {
+      height: 55px;
+      margin-bottom: 10px;
+    }
+    .auth-header h2 {
+      color: #002b49;
+      font-size: 1.5rem;
+      font-weight: 800;
+      margin-bottom: 4px;
+    }
+    .auth-header p {
+      color: #64748b;
+      font-size: 0.85rem;
+    }
+    .auth-tabs {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
+      border-bottom: 2px solid #e2e8f0;
+    }
+    .auth-tab-btn {
+      flex: 1;
+      padding: 10px;
+      background: none;
+      border: none;
+      border-bottom: 3px solid transparent;
+      font-weight: 700;
+      font-size: 0.9rem;
+      color: #64748b;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .auth-tab-btn.active {
+      color: #002b49;
+      border-bottom-color: #002b49;
+    }
+    .auth-form {
+      display: none;
+    }
+    .auth-form.active {
+      display: block;
+    }
+    .form-group {
+      margin-bottom: 16px;
+    }
+    .form-group label {
+      display: block;
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: #002b49;
+      margin-bottom: 6px;
+    }
+    .form-control {
+      width: 100%;
+      padding: 10px 14px;
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      font-size: 0.9rem;
+    }
+    .form-control:focus {
+      outline: none;
+      border-color: #002b49;
+      box-shadow: 0 0 0 3px rgba(0, 43, 73, 0.1);
+    }
+  </style>
+</head>
+<body>
+
+  <div class="auth-card">
+    <div class="auth-header">
+      <img src="https://upload.wikimedia.org/wikipedia/commons/2/25/Logo_uaem_morelos.png" alt="Logo UAEM">
+      <h2>UAEM Store Web</h2>
+      <p>Portal de Comercio Universitario Oficial e Incluyente</p>
+    </div>
+
+    <!-- Pestañas para alternar entre Login y Registro -->
+    <div class="auth-tabs">
+      <button type="button" class="auth-tab-btn active" id="tabLoginBtn" onclick="switchAuthTab('login')"><i class="fa-solid fa-right-to-bracket"></i> Iniciar Sesión</button>
+      <button type="button" class="auth-tab-btn" id="tabRegisterBtn" onclick="switchAuthTab('register')"><i class="fa-solid fa-user-plus"></i> Registrarse</button>
+    </div>
+
+    <!-- 1. FORMULARIO DE INICIO DE SESIÓN -->
+    <form id="loginForm" class="auth-form active" onsubmit="loginUserSubmit(event)">
+      <div class="form-group">
+        <label for="loginEmail"><i class="fa-solid fa-envelope"></i> Correo Institucional (@uaem.mx)</label>
+        <input type="email" id="loginEmail" class="form-control" placeholder="carlossevilla@uaem.mx" required>
+      </div>
+
+      <div class="form-group">
+        <label for="loginPassword"><i class="fa-solid fa-lock"></i> Contraseña</label>
+        <input type="password" id="loginPassword" class="form-control" placeholder="••••••••" required>
+      </div>
+
+      <button type="submit" class="btn btn-primary" style="width: 100%; padding: 12px; font-weight: 700; margin-top: 10px;">
+        <i class="fa-solid fa-right-to-bracket"></i> Entrar a la Plataforma
+      </button>
+    </form>
+
+    <!-- 2. FORMULARIO DE REGISTRO DE NUEVO USUARIO -->
+    <form id="registerForm" class="auth-form" onsubmit="registerUserSubmit(event)">
+      <div class="form-group">
+        <label for="regName"><i class="fa-solid fa-user"></i> Nombre Completo</label>
+        <input type="text" id="regName" class="form-control" placeholder="Ej. Carlos Sevilla Fonseca" required>
+      </div>
+
+      <div class="form-group">
+        <label for="regEmail"><i class="fa-solid fa-envelope"></i> Correo Institucional (@uaem.mx / @uaem.edu.mx)</label>
+        <input type="email" id="regEmail" class="form-control" placeholder="carlossevilla@uaem.mx" required>
+      </div>
+
+      <div class="form-group">
+        <label for="regPassword"><i class="fa-solid fa-lock"></i> Crear Contraseña</label>
+        <input type="password" id="regPassword" class="form-control" placeholder="••••••••" required>
+      </div>
+
+      <div class="form-group">
+        <label for="regRole"><i class="fa-solid fa-user-tag"></i> Rol en la Universidad</label>
+        <select id="regRole" class="form-control" required>
+          <option value="Estudiante / Alumno">Estudiante / Alumno</option>
+          <option value="Profesor / Docente">Profesor / Docente</option>
+          <option value="Personal Administrativo">Personal Administrativo</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label for="regFaculty"><i class="fa-solid fa-building-columns"></i> Facultad / Unidad Académica</label>
+        <select id="regFaculty" class="form-control" required>
+          <option value="Toda la Universidad (Campus Chamilpa / Multicampus)">Toda la Universidad (Campus Chamilpa / Multicampus)</option>
+          <option value="FCQI - Ciencias Químicas e Ingenierías">FCQI - Ciencias Químicas e Ingenierías</option>
+          <option value="FCAeI - Contaduría, Administración e Informática">FCAeI - Contaduría, Administración e Informática</option>
+          <option value="FDyCS - Derecho y Ciencias Sociales">FDyCS - Derecho y Ciencias Sociales</option>
+          <option value="FACMED - Medicina">FACMED - Medicina</option>
+          <option value="Facultad de Ciencias">Facultad de Ciencias</option>
+          <option value="Facultad de Ciencias Agropecuarias">Facultad de Ciencias Agropecuarias</option>
+          <option value="FAD - Diseño">FAD - Diseño</option>
+          <option value="Facultad de Arquitectura">Facultad de Arquitectura</option>
+          <option value="Polideportivo Chamilpa">Polideportivo Chamilpa</option>
+        </select>
+      </div>
+
+      <button type="submit" class="btn btn-primary" style="width: 100%; padding: 12px; font-weight: 700; margin-top: 10px;">
+        <i class="fa-solid fa-user-check"></i> Registrar Cuenta e Iniciar
+      </button>
+    </form>
+  </div>
+
+  <script>
+    // Función para alternar entre el formulario de inicio de sesión y registro
+    function switchAuthTab(type) {
+      document.getElementById('loginForm').classList.toggle('active', type === 'login');
+      document.getElementById('registerForm').classList.toggle('active', type === 'register');
+      document.getElementById('tabLoginBtn').classList.toggle('active', type === 'login');
+      document.getElementById('tabRegisterBtn').classList.toggle('active', type === 'register');
+    }
+  </script>
+
+  <!-- Script principal de lógica y conexión a Supabase -->
+  <script src="main.js"></script>
+</body>
+</html>

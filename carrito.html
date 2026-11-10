@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>UAEM Store Web - Carrito de Compras</title>
+  
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
+  
+  <link rel="stylesheet" href="main.css">
+
+  <!-- Librería oficial de Supabase JS -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+</head>
+<body>
+
+  <header>
+    <div class="navbar">
+      <a href="index.html" class="brand">
+        <img src="https://upload.wikimedia.org/wikipedia/commons/2/25/Logo_uaem_morelos.png" alt="Escudo UAEM">
+        <div><div class="brand-title">UAEM <span>Store Web</span></div><div class="brand-sub">UNIVERSIDAD AUTÓNOMA DEL ESTADO DE MORELOS</div></div>
+      </a>
+      <div class="nav-actions">
+        <a href="index.html" class="nav-btn"><i class="fa-solid fa-store"></i> Catálogo</a>
+        <a href="mis-compras.html" class="nav-btn"><i class="fa-solid fa-receipt"></i> Mis Compras</a>
+        <a href="mis-productos.html" class="nav-btn" id="btnNavMyProducts" style="display: none;"><i class="fa-solid fa-boxes-packing"></i> Mis Productos</a>
+        <button class="nav-btn" onclick="openAddModal()"><i class="fa-solid fa-plus-circle"></i> Vender</button>
+        <a href="carrito.html" class="nav-btn active"><i class="fa-solid fa-cart-shopping"></i> Carrito <span class="badge" id="cartBadge">0</span></a>
+        
+        <div class="user-pill">
+          <div class="avatar" id="userAvatar">CS</div>
+          <div class="user-info"><span class="user-name" id="userNameDisplay">Usuario</span><span class="user-role" id="userRoleDisplay">Alumno</span></div>
+        </div>
+
+        <button class="btn-logout-navbar" onclick="logout()" title="Cerrar Sesión">
+          <i class="fa-solid fa-right-from-bracket"></i> <span>Salir</span>
+        </button>
+      </div>
+    </div>
+    <div class="user-bar">
+      <span><i class="fa-solid fa-circle-check" style="color: #4ade80;"></i> Sesión Institucional Verificada: <strong id="userEmailDisplay">correo@uaem.mx</strong></span>
+      <span><i class="fa-solid fa-location-dot"></i> Campus Chamilpa & Sedes UAEM</span>
+    </div>
+  </header>
+
+  <main>
+    <div class="table-container">
+      <div class="table-header">
+        <h2><i class="fa-solid fa-cart-shopping"></i> Tu Carrito de Compras</h2>
+        <button class="btn btn-secondary" onclick="clearCart()"><i class="fa-solid fa-trash-can"></i> Vaciar Carrito</button>
+      </div>
+      <div style="overflow-x: auto;">
+        <table>
+          <thead>
+            <tr>
+              <th>Producto</th>
+              <th>Vendedor</th>
+              <th>Horario & Punto Seguro</th>
+              <th>Precio Unitario</th>
+              <th>Cantidad</th>
+              <th>Subtotal</th>
+              <th>Acción</th>
+            </tr>
+          </thead>
+          <tbody id="cartTableBody"></tbody>
+        </table>
+      </div>
+      <div class="cart-summary">
+        <span>Total a Pagar: <span id="cartTotal" style="color:var(--uaem-blue-main);">$0.00 MXN</span></span>
+        <button class="btn btn-primary" onclick="checkout()"><i class="fa-solid fa-bag-shopping"></i> Confirmar y Pedir</button>
+      </div>
+    </div>
+  </main>
+
+  <footer>
+    <p><strong>UAEM Store Web &copy; 2026</strong> - Portal Oficial de Comercio Universitario Incluyente</p>
+  </footer>
+
+  <script src="main.js"></script>
+</body>
+</html>

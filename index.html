@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>UAEM Store Web - Catálogo</title>
+  
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
+  
+  <!-- Estilos principales -->
+  <link rel="stylesheet" href="main.css">
+
+  <!-- Librería oficial de Supabase JS (Debe ir ANTES de main.js) -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+</head>
+<body>
+
+  <header>
+    <div class="navbar">
+      <a href="index.html" class="brand">
+        <img src="https://upload.wikimedia.org/wikipedia/commons/2/25/Logo_uaem_morelos.png" alt="Escudo UAEM">
+        <div><div class="brand-title">UAEM <span>Store Web</span></div><div class="brand-sub">UNIVERSIDAD AUTÓNOMA DEL ESTADO DE MORELOS</div></div>
+      </a>
+      <div class="nav-actions">
+        <a href="index.html" class="nav-btn active"><i class="fa-solid fa-store"></i> Catálogo</a>
+        <a href="mis-compras.html" class="nav-btn"><i class="fa-solid fa-receipt"></i> Mis Compras</a>
+        <a href="mis-productos.html" class="nav-btn" id="btnNavMyProducts" style="display: none;"><i class="fa-solid fa-boxes-packing"></i> Mis Productos</a>
+        <button class="nav-btn" onclick="openAddModal()"><i class="fa-solid fa-plus-circle"></i> Vender</button>
+        <a href="carrito.html" class="nav-btn"><i class="fa-solid fa-cart-shopping"></i> Carrito <span class="badge" id="cartBadge">0</span></a>
+        
+        <div class="user-pill">
+          <div class="avatar" id="userAvatar">CS</div>
+          <div class="user-info"><span class="user-name" id="userNameDisplay">Usuario</span><span class="user-role" id="userRoleDisplay">Alumno</span></div>
+        </div>
+
+        <button class="btn-logout-navbar" onclick="logout()" title="Cerrar Sesión">
+          <i class="fa-solid fa-right-from-bracket"></i> <span>Salir</span>
+        </button>
+      </div>
+    </div>
+    <div class="user-bar">
+      <span><i class="fa-solid fa-circle-check" style="color: #4ade80;"></i> Sesión Institucional Verificada: <strong id="userEmailDisplay">correo@uaem.mx</strong></span>
+      <span><i class="fa-solid fa-location-dot"></i> Campus Chamilpa & Sedes UAEM</span>
+    </div>
+  </header>
+
+  <main>
+    <div class="controls-card">
+      <div class="search-box">
+        <i class="fa-solid fa-magnifying-glass"></i>
+        <input type="text" id="searchInput" class="form-control" placeholder="Buscar por artículo, libro, vendedor o facultad..." oninput="filterProducts()">
+      </div>
+      <div class="filter-pills">
+        <button class="pill active" onclick="setCategoryFilter('all', this)">Todos</button>
+        <button class="pill" onclick="setCategoryFilter('libros', this)"><i class="fa-solid fa-book"></i> Libros & Apuntes</button>
+        <button class="pill" onclick="setCategoryFilter('papeleria', this)"><i class="fa-solid fa-pen-ruler"></i> Papelería</button>
+        <button class="pill" onclick="setCategoryFilter('electronica', this)"><i class="fa-solid fa-laptop"></i> Electrónica</button>
+        <button class="pill" onclick="setCategoryFilter('ropa', this)"><i class="fa-solid fa-shirt"></i> Ropa & Identidad</button>
+        <button class="pill" onclick="setCategoryFilter('otros', this)"><i class="fa-solid fa-utensils"></i> Snacks & Salud</button>
+      </div>
+    </div>
+
+    <div class="grid" id="productsGrid"></div>
+  </main>
+
+  <!-- MODAL DE PUBLICAR ARTÍCULO -->
+  <div class="modal-overlay" id="productModal">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3><i class="fa-solid fa-plus-circle"></i> Publicar Artículo en UAEM Store</h3>
+        <span class="close-modal" onclick="closeProductModal()">&times;</span>
+      </div>
+      <form id="productForm" onsubmit="saveProductSubmit(event)">
+        <div class="form-group"><label for="pName">Nombre del Producto</label><input type="text" id="pName" class="form-control" placeholder="Ej. Calculadora Casio" required></div>
+        <div class="form-group">
+          <label for="pCategory">Categoría</label>
+          <select id="pCategory" class="form-control" required>
+            <option value="libros">Libros & Apuntes</option>
+            <option value="papeleria">Papelería y Arquitectura</option>
+            <option value="electronica">Electrónica & Gadgets</option>
+            <option value="ropa">Ropa e Identidad UAEM</option>
+            <option value="otros">Snacks, Salud & General</option>
+          </select>
+        </div>
+        <div style="display: flex; gap: 15px;">
+          <div class="form-group" style="flex: 1;"><label for="pPrice">Precio ($ MXN)</label><input type="number" id="pPrice" class="form-control" min="1" step="0.5" required></div>
+          <div class="form-group" style="flex: 1;"><label for="pStock">Unidades (Stock)</label><input type="number" id="pStock" class="form-control" min="1" required></div>
+        </div>
+        <div class="form-group">
+          <label for="pSchedule"><i class="fa-solid fa-clock"></i> Horario de Entrega</label>
+          <select id="pSchedule" class="form-control" required>
+            <option value="Turno Matutino (7:00 AM - 1:00 PM)">Turno Matutino (7:00 AM - 1:00 PM)</option>
+            <option value="Turno Vespertino (1:00 PM - 7:00 PM)">Turno Vespertino (1:00 PM - 7:00 PM)</option>
+            <option value="Horario de Profesor (Previa Cita Cubículo)">Horario de Profesor / Cubículo</option>
+            <option value="Entrega Inmediata entre Clases">Entrega Inmediata entre Clases</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="pDeliveryPoint"><i class="fa-solid fa-shield-cat" style="color: #059669;"></i> Punto de Entrega Seguro (Cámara & Botón de Pánico)</label>
+          <select id="pDeliveryPoint" class="form-control" required></select>
+        </div>
+
+        <div class="form-group"><label for="pImage">URL de Imagen (Opcional)</label><input type="url" id="pImage" class="form-control"></div>
+        <div style="background: #f1f5f9; padding: 12px; border-radius: 6px; margin-bottom: 18px; font-size: 0.82rem;"><i class="fa-solid fa-user-check"></i> <strong>Vendedor:</strong> <span id="detectedSeller"></span></div>
+        <button type="submit" class="btn btn-primary" style="width: 100%;"><i class="fa-solid fa-cloud-arrow-up"></i> Publicar en Catálogo</button>
+      </form>
+    </div>
+  </div>
+
+  <footer>
+    <p><strong>UAEM Store Web &copy; 2026</strong> - Portal Oficial de Comercio Universitario Incluyente</p>
+  </footer>
+
+  <script src="main.js"></script>
+</body>
+</html>
