@@ -447,3 +447,72 @@ footer { background: var(--uaem-blue-dark); color: white; text-align: center; pa
     bottom: 20px !important;
     right: 20px !important;
 }
+
+/* ==========================================
+   POSICIONAMIENTO Y ESTILOS DEL MENÚ ADMIN (3 PUNTOS)
+   ========================================== */
+.card {
+  overflow: visible !important; /* Permite que el menú desplegable no se corte */
+}
+
+.admin-dropdown {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  z-index: 50;
+}
+
+.btn-admin-dots {
+  background: #002b49 !important;
+  color: #ffffff !important;
+  border: 2px solid #d4af37 !important;
+  width: 34px !important;
+  height: 34px !important;
+  border-radius: 50% !important;
+  cursor: pointer !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  font-size: 1rem !important;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.4) !important;
+  transition: transform 0.2s !important;
+}
+
+.btn-admin-dots:hover {
+  transform: scale(1.15) !important;
+  background: #00407a !important;
+}
+
+.admin-dropdown-content {
+  display: none;
+  position: absolute;
+  left: 0;
+  top: 40px;
+  background-color: #ffffff;
+  min-width: 170px;
+  box-shadow: 0px 10px 25px rgba(0,0,0,0.3);
+  border-radius: 8px;
+  border: 1.5px solid #cbd5e1;
+  overflow: hidden;
+  z-index: 100;
+}
+
+.admin-dropdown:hover .admin-dropdown-content {
+  display: block;
+}
+
+.admin-dropdown-content a {
+  color: #002b49;
+  padding: 10px 14px;
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.admin-dropdown-content a:hover {
+  background-color: #f1f5f9;
+}

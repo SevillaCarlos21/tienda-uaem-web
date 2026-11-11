@@ -2,11 +2,8 @@
 // 1. CONFIGURACIÓN DE CONEXIÓN A SUPABASE
 // ==========================================
 const SUPABASE_URL = 'https://mfakcmmxitrhjbvxdbsw.supabase.co';
-
-// ⚠️ REEMPLAZA ESTE TEXTO CON TU "Publishable key" REAL DE SUPABASE (inicia con sb_publishable_...)
 const SUPABASE_KEY = 'sb_publishable_1Cb4K5J5QX154gshSKrh7Q_vo3CpMLX';
 
-// Renombrado a supabaseClient para evitar colisión con el objeto global de la CDN
 const supabaseClient = (window.supabase && window.supabase.createClient) 
   ? window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY) 
   : null;
@@ -50,7 +47,7 @@ window.addEventListener('DOMContentLoaded', async () => {
     updateUserUI();
     updateCartBadge();
     
-    // Cargar productos directamente desde Supabase
+    // Cargar productos desde Supabase
     await fetchProductsFromSupabase();
     
     checkVendorStatus();
@@ -101,7 +98,7 @@ async function fetchProductsFromSupabase() {
 }
 
 // ==========================================
-// 4. AUTENTICACIÓN Y REGISTRO CON @uaem
+// 4. AUTENTICACIÓN Y REGISTRO (CON SOPORTE ADMIN)
 // ==========================================
 function validateUAEMEmail(email) {
   const domain = email.toLowerCase();
@@ -158,17 +155,39 @@ async function registerUserSubmit(e) {
 async function loginUserSubmit(e) {
   if (e) e.preventDefault();
 
-  const email = document.getElementById('loginEmail').value.trim();
+  const userInput = document.getElementById('loginEmail').value.trim();
   const password = document.getElementById('loginPassword').value;
-
-  if (!validateUAEMEmail(email)) {
-    return Swal.fire({ icon: 'error', title: 'Dominio Inválido', text: 'El correo ingresado debe ser institucional (@uaem.mx o @uaem.edu.mx).' });
-  }
 
   Swal.fire({ title: 'Verificando...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
 
   try {
-    const { data: user, error } = await supabaseClient.from('usuarios').select('*').eq('correo', email).eq('password', password).maybeSingle();
+    // 1. ACCESO DIRECTO ADMINISTRADOR
+    if (userInput.toLowerCase() === 'admin' && password === 'admin123') {
+      currentUser = {
+        id: 9999,
+        name: 'Administrador UAEM',
+        email: 'admin@sistema.uaem',
+        role: 'Administrador / Moderador UAEM',
+        faculty: 'Rectoría / Gestión Central'
+      };
+      localStorage.setItem('uaem_current_user', JSON.stringify(currentUser));
+
+      return Swal.fire({ icon: 'success', title: '¡Modo Administrador!', timer: 1000, showConfirmButton: false }).then(() => {
+        window.location.href = 'admin.html';
+      });
+    }
+
+    // 2. ACCESO NORMAL ALUMNOS / PROFESORES (@uaem.mx)
+    if (!validateUAEMEmail(userInput)) {
+      return Swal.fire({ icon: 'error', title: 'Dominio Inválido', text: 'El correo ingresado debe ser institucional (@uaem.mx o @uaem.edu.mx) o un usuario Administrador válido.' });
+    }
+
+    const { data: user, error } = await supabaseClient
+      .from('usuarios')
+      .select('*')
+      .eq('correo', userInput)
+      .eq('password', password)
+      .maybeSingle();
 
     if (error || !user) {
       return Swal.fire({ icon: 'error', title: 'Acceso Incorrecto', text: 'Credenciales inválidas o no existentes.' });
@@ -186,8 +205,32 @@ async function loginUserSubmit(e) {
 }
 
 // ==========================================
-// 5. MÓDULOS DE ACCESIBILIDAD Y UI
+// 5. MÓDULOS DE ACCESIBILIDAD Y UI (CON PERSISTENCIA)
 // ==========================================
+
+// ESTADOS ACCESIBILIDAD (RECUPERADOS DE LOCALSTORAGE)
+let accSettings = JSON.parse(localStorage.getItem('uaem_acc_settings')) || {
+  contrast: null,         // 'dark', 'light', or null
+  keyboard: false,
+  tts: false,
+  mono: false,
+  zoom: false,
+  dyslexic: false,
+  links: false,
+  headers: false,
+  fontMode: 'size',
+  fontSize: 100,
+  fontLine: 1.5,
+  fontWord: 0,
+  fontLetter: 0,
+  cursor: 'normal'        // 'white', 'black', 'normal'
+};
+
+// Guardar estados en localStorage
+function saveAccSettings() {
+  localStorage.setItem('uaem_acc_settings', JSON.stringify(accSettings));
+}
+
 function injectAccessibilityMarkup() {
   if (document.getElementById('floatingAccBtn')) return;
   
@@ -212,7 +255,7 @@ function injectAccessibilityMarkup() {
         <div class="acc-section-title"><i class="fa-solid fa-text-height"></i> Ajustes de Fuente</div>
         <div class="acc-section-sub">Aumentar y disminuir el tamaño de letra e interlineado</div>
         <div class="acc-pill-group">
-          <button class="acc-pill-btn active" id="btnFontOptSize" onclick="setFontAdjustMode('size')">Tamaño de letra</button>
+          <button class="acc-pill-btn" id="btnFontOptSize" onclick="setFontAdjustMode('size')">Tamaño de letra</button>
           <button class="acc-pill-btn" id="btnFontOptLine" onclick="setFontAdjustMode('line')">Espacio líneas</button>
           <button class="acc-pill-btn" id="btnFontOptWord" onclick="setFontAdjustMode('word')">Espacio palabras</button>
           <button class="acc-pill-btn" id="btnFontOptLetter" onclick="setFontAdjustMode('letter')">Espacio letras</button>
@@ -230,12 +273,69 @@ function injectAccessibilityMarkup() {
         <div class="acc-pill-group" style="margin-bottom:0;">
           <button class="acc-pill-btn" id="btnCursorWhite" onclick="setCursorMode('white')">BLANCO GRANDE</button>
           <button class="acc-pill-btn" id="btnCursorBlack" onclick="setCursorMode('black')">NEGRO GRANDE</button>
-          <button class="acc-pill-btn active" id="btnCursorNormal" onclick="setCursorMode('normal')">NORMAL</button>
+          <button class="acc-pill-btn" id="btnCursorNormal" onclick="setCursorMode('normal')">NORMAL</button>
         </div>
       </div>
     </div>
   `;
   document.body.insertAdjacentHTML('beforeend', accHTML);
+  applySavedAccSettings();
+}
+
+// Aplica los estilos activos guardados en la página actual
+function applySavedAccSettings() {
+  // Contraste
+  if (accSettings.contrast === 'dark') {
+    document.body.classList.add('high-contrast-dark');
+    document.getElementById('tileDarkHc')?.classList.add('active');
+  } else if (accSettings.contrast === 'light') {
+    document.body.classList.add('high-contrast-light');
+    document.getElementById('tileLightHc')?.classList.add('active');
+  }
+
+  // Teclado
+  if (accSettings.keyboard) document.getElementById('tileKeyboard')?.classList.add('active');
+
+  // Lector de Voz
+  if (accSettings.tts) document.getElementById('tileTTS')?.classList.add('active');
+
+  // Monocromático
+  if (accSettings.mono) {
+    document.documentElement.classList.add('filter-monochrome');
+    document.getElementById('tileMono')?.classList.add('active');
+  }
+
+  // Zoom
+  if (accSettings.zoom) {
+    document.body.style.zoom = "115%";
+    document.getElementById('tileZoom')?.classList.add('active');
+  }
+
+  // Fuente Legible (Dislexia)
+  if (accSettings.dyslexic) {
+    document.body.classList.add('accessible-dyslexic');
+    document.getElementById('tileDyslexic')?.classList.add('active');
+  }
+
+  // Resaltar Enlaces y Encabezados
+  if (accSettings.links) {
+    document.body.classList.add('highlight-links');
+    document.getElementById('tileLinks')?.classList.add('active');
+  }
+  if (accSettings.headers) {
+    document.body.classList.add('highlight-headers');
+    document.getElementById('tileHeaders')?.classList.add('active');
+  }
+
+  // Ajustes de Fuente guardados
+  document.documentElement.style.fontSize = accSettings.fontSize + '%';
+  document.documentElement.style.setProperty('--line-spacing', accSettings.fontLine);
+  document.documentElement.style.setProperty('--word-spacing', accSettings.fontWord + 'px');
+  document.documentElement.style.setProperty('--letter-spacing', accSettings.fontLetter + 'px');
+  setFontAdjustMode(accSettings.fontMode || 'size');
+
+  // Cursor guardado
+  setCursorMode(accSettings.cursor || 'normal', false);
 }
 
 function checkVendorStatus() {
@@ -247,12 +347,45 @@ function checkVendorStatus() {
 
 function updateUserUI() {
   if (!currentUser) return;
+
   if (document.getElementById('userNameDisplay')) document.getElementById('userNameDisplay').textContent = currentUser.name;
   if (document.getElementById('userRoleDisplay')) document.getElementById('userRoleDisplay').textContent = currentUser.role;
   if (document.getElementById('userEmailDisplay')) document.getElementById('userEmailDisplay').textContent = currentUser.email;
   if (document.getElementById('userAvatar')) {
     const initials = currentUser.name.split(' ').map(n => n[0]).join('').substring(0,2).toUpperCase();
     document.getElementById('userAvatar').textContent = initials;
+  }
+
+  const isAdmin = currentUser.role === 'Administrador / Moderador UAEM';
+  
+  if (isAdmin) {
+    const btnPurchases = document.querySelector('a[href="mis-compras.html"]');
+    const btnMyProducts = document.getElementById('btnNavMyProducts');
+    const btnSell = document.querySelector('button[onclick="openAddModal()"]');
+    const btnCart = document.querySelector('a[href="carrito.html"]');
+
+    if (btnPurchases) btnPurchases.style.display = 'none';
+    if (btnMyProducts) btnMyProducts.style.display = 'none';
+    if (btnSell) btnSell.style.display = 'none';
+    if (btnCart) btnCart.style.display = 'none';
+
+    const navActions = document.querySelector('.nav-actions');
+    const alreadyHasAdminBtn = document.getElementById('btnNavAdmin') || document.querySelector('a[href="admin.html"]');
+
+    if (navActions && !alreadyHasAdminBtn) {
+      const isNavAdminActive = window.location.pathname.includes('admin.html');
+      const adminBtnHTML = `
+        <a href="admin.html" class="nav-btn ${isNavAdminActive ? 'active' : ''}" id="btnNavAdmin" style="background:var(--uaem-gold); color:var(--uaem-blue-dark); font-weight:700;">
+          <i class="fa-solid fa-chart-line"></i> Panel Admin
+        </a>`;
+      
+      const userPill = document.querySelector('.user-pill');
+      if (userPill) {
+        userPill.insertAdjacentHTML('beforebegin', adminBtnHTML);
+      } else {
+        navActions.insertAdjacentHTML('beforeend', adminBtnHTML);
+      }
+    }
   }
 }
 
@@ -275,101 +408,137 @@ function logout() {
   });
 }
 
-// FUNCIONES DE ACCESIBILIDAD
+// FUNCIONES INTERACTIVAS CON GUARDADO AUTOMÁTICO
 function toggleAccessibilityPanel() { document.getElementById('accessibilityPanel').classList.toggle('active'); }
+
 function toggleKeyboardNav() {
-  const active = document.getElementById('tileKeyboard').classList.toggle('active');
-  if (active) speakText("Navegación con teclado activada. Usa la tecla Tab para recorrer el sitio.");
+  accSettings.keyboard = !accSettings.keyboard;
+  document.getElementById('tileKeyboard').classList.toggle('active', accSettings.keyboard);
+  saveAccSettings();
+  if (accSettings.keyboard) speakText("Navegación con teclado activada. Usa la tecla Tab para recorrer el sitio.");
 }
+
 function toggleTextToSpeech() {
-  ttsActive = !ttsActive;
-  document.getElementById('tileTTS').classList.toggle('active', ttsActive);
-  if (ttsActive) speakText("Lector de texto activado. Pasa el ratón sobre los productos.");
+  accSettings.tts = !accSettings.tts;
+  document.getElementById('tileTTS').classList.toggle('active', accSettings.tts);
+  saveAccSettings();
+  if (accSettings.tts) speakText("Lector de texto activado. Pasa el ratón sobre los productos.");
   else window.speechSynthesis.cancel();
 }
+
 function toggleContrastMode(mode) {
   const tileDark = document.getElementById('tileDarkHc');
   const tileLight = document.getElementById('tileLightHc');
 
-  if (currentContrastMode === mode) {
+  if (accSettings.contrast === mode) {
     document.body.classList.remove('high-contrast-dark', 'high-contrast-light');
     tileDark.classList.remove('active'); tileLight.classList.remove('active');
-    currentContrastMode = null;
+    accSettings.contrast = null;
   } else {
     document.body.classList.remove('high-contrast-dark', 'high-contrast-light');
     tileDark.classList.remove('active'); tileLight.classList.remove('active');
     if (mode === 'dark') {
       document.body.classList.add('high-contrast-dark');
       tileDark.classList.add('active');
-      currentContrastMode = 'dark';
+      accSettings.contrast = 'dark';
     } else {
       document.body.classList.add('high-contrast-light');
       tileLight.classList.add('active');
-      currentContrastMode = 'light';
+      accSettings.contrast = 'light';
     }
   }
+  saveAccSettings();
+
+  if (typeof loadAdminDashboard === 'function') {
+    setTimeout(() => { loadAdminDashboard(); }, 100);
+  }
 }
+
 function toggleMonochrome() {
-  const isMono = document.documentElement.classList.toggle('filter-monochrome');
-  document.getElementById('tileMono').classList.toggle('active', isMono);
+  accSettings.mono = document.documentElement.classList.toggle('filter-monochrome');
+  document.getElementById('tileMono').classList.toggle('active', accSettings.mono);
+  saveAccSettings();
 }
+
 function toggleScreenZoom() {
-  screenZoomActive = !screenZoomActive;
-  document.getElementById('tileZoom').classList.toggle('active', screenZoomActive);
-  document.body.style.zoom = screenZoomActive ? "115%" : "100%";
+  accSettings.zoom = !accSettings.zoom;
+  document.getElementById('tileZoom').classList.toggle('active', accSettings.zoom);
+  document.body.style.zoom = accSettings.zoom ? "115%" : "100%";
+  saveAccSettings();
 }
+
 function toggleDyslexicFont() {
-  const active = document.body.classList.toggle('accessible-dyslexic');
-  document.getElementById('tileDyslexic').classList.toggle('active', active);
+  accSettings.dyslexic = document.body.classList.toggle('accessible-dyslexic');
+  document.getElementById('tileDyslexic').classList.toggle('active', accSettings.dyslexic);
+  saveAccSettings();
 }
+
 function toggleHighlightLinks() {
-  const active = document.body.classList.toggle('highlight-links');
-  document.getElementById('tileLinks').classList.toggle('active', active);
+  accSettings.links = document.body.classList.toggle('highlight-links');
+  document.getElementById('tileLinks').classList.toggle('active', accSettings.links);
+  saveAccSettings();
 }
+
 function toggleHighlightHeaders() {
-  const active = document.body.classList.toggle('highlight-headers');
-  document.getElementById('tileHeaders').classList.toggle('active', active);
+  accSettings.headers = document.body.classList.toggle('highlight-headers');
+  document.getElementById('tileHeaders').classList.toggle('active', accSettings.headers);
+  saveAccSettings();
 }
+
 function setFontAdjustMode(mode) {
-  fontAdjustMode = mode;
+  accSettings.fontMode = mode;
   document.querySelectorAll('.acc-pill-btn').forEach(btn => btn.classList.remove('active'));
   const slider = document.getElementById('fontSlider');
-  if (mode === 'size') { document.getElementById('btnFontOptSize').classList.add('active'); slider.min = 80; slider.max = 150; slider.value = fontSizeVal; }
-  else if (mode === 'line') { document.getElementById('btnFontOptLine').classList.add('active'); slider.min = 12; slider.max = 24; slider.value = fontLineVal * 10; }
-  else if (mode === 'word') { document.getElementById('btnFontOptWord').classList.add('active'); slider.min = 0; slider.max = 10; slider.value = fontWordVal; }
-  else if (mode === 'letter') { document.getElementById('btnFontOptLetter').classList.add('active'); slider.min = 0; slider.max = 5; slider.value = fontLetterVal; }
+  if (!slider) return;
+
+  if (mode === 'size') { document.getElementById('btnFontOptSize')?.classList.add('active'); slider.min = 80; slider.max = 150; slider.value = accSettings.fontSize; }
+  else if (mode === 'line') { document.getElementById('btnFontOptLine')?.classList.add('active'); slider.min = 12; slider.max = 24; slider.value = accSettings.fontLine * 10; }
+  else if (mode === 'word') { document.getElementById('btnFontOptWord')?.classList.add('active'); slider.min = 0; slider.max = 10; slider.value = accSettings.fontWord; }
+  else if (mode === 'letter') { document.getElementById('btnFontOptLetter')?.classList.add('active'); slider.min = 0; slider.max = 5; slider.value = accSettings.fontLetter; }
 }
+
 function handleFontSliderChange(val) {
   const v = parseFloat(val);
-  if (fontAdjustMode === 'size') { fontSizeVal = v; document.documentElement.style.fontSize = v + '%'; }
-  else if (fontAdjustMode === 'line') { fontLineVal = v / 10; document.documentElement.style.setProperty('--line-spacing', fontLineVal); }
-  else if (fontAdjustMode === 'word') { fontWordVal = v; document.documentElement.style.setProperty('--word-spacing', fontWordVal + 'px'); }
-  else if (fontAdjustMode === 'letter') { fontLetterVal = v; document.documentElement.style.setProperty('--letter-spacing', fontLetterVal + 'px'); }
+  if (accSettings.fontMode === 'size') { accSettings.fontSize = v; document.documentElement.style.fontSize = v + '%'; }
+  else if (accSettings.fontMode === 'line') { accSettings.fontLine = v / 10; document.documentElement.style.setProperty('--line-spacing', accSettings.fontLine); }
+  else if (accSettings.fontMode === 'word') { accSettings.fontWord = v; document.documentElement.style.setProperty('--word-spacing', accSettings.fontWord + 'px'); }
+  else if (accSettings.fontMode === 'letter') { accSettings.fontLetter = v; document.documentElement.style.setProperty('--letter-spacing', accSettings.fontLetter + 'px'); }
+  saveAccSettings();
 }
+
 function stepFontSlider(delta) {
   const slider = document.getElementById('fontSlider');
+  if (!slider) return;
   slider.value = parseInt(slider.value) + delta * 5;
   handleFontSliderChange(slider.value);
 }
+
 function resetFontSettings() {
-  fontSizeVal = 100; fontLineVal = 1.5; fontWordVal = 0; fontLetterVal = 0;
+  accSettings.fontSize = 100; accSettings.fontLine = 1.5; accSettings.fontWord = 0; accSettings.fontLetter = 0;
   document.documentElement.style.fontSize = '100%';
   document.documentElement.style.setProperty('--line-spacing', 1.5);
   document.documentElement.style.setProperty('--word-spacing', '0px');
   document.documentElement.style.setProperty('--letter-spacing', '0px');
   setFontAdjustMode('size');
+  saveAccSettings();
 }
-function setCursorMode(mode) {
+
+function setCursorMode(mode, save = true) {
   document.body.classList.remove('cursor-large-white', 'cursor-large-black');
-  document.getElementById('btnCursorWhite').classList.remove('active');
-  document.getElementById('btnCursorBlack').classList.remove('active');
-  document.getElementById('btnCursorNormal').classList.remove('active');
-  if (mode === 'white') { document.body.classList.add('cursor-large-white'); document.getElementById('btnCursorWhite').classList.add('active'); }
-  else if (mode === 'black') { document.body.classList.add('cursor-large-black'); document.getElementById('btnCursorBlack').classList.add('active'); }
-  else { document.getElementById('btnCursorNormal').classList.add('active'); }
+  document.getElementById('btnCursorWhite')?.classList.remove('active');
+  document.getElementById('btnCursorBlack')?.classList.remove('active');
+  document.getElementById('btnCursorNormal')?.classList.remove('active');
+
+  accSettings.cursor = mode;
+  if (mode === 'white') { document.body.classList.add('cursor-large-white'); document.getElementById('btnCursorWhite')?.classList.add('active'); }
+  else if (mode === 'black') { document.body.classList.add('cursor-large-black'); document.getElementById('btnCursorBlack')?.classList.add('active'); }
+  else { document.getElementById('btnCursorNormal')?.classList.add('active'); }
+  
+  if (save) saveAccSettings();
 }
+
 function speakText(text) {
-  if (!ttsActive || !('speechSynthesis' in window)) return;
+  if (!accSettings.tts || !('speechSynthesis' in window)) return;
   window.speechSynthesis.cancel();
   const utterance = new SpeechSynthesisUtterance(text);
   utterance.lang = 'es-MX';
@@ -395,14 +564,32 @@ function renderProducts() {
     return;
   }
 
+  // Detección del usuario Administrador
+  const isAdmin = currentUser && (currentUser.role === 'Administrador / Moderador UAEM' || currentUser.name.includes('Administrador'));
+
   grid.innerHTML = filtered.map(p => {
     const isSoldOut = p.stock <= 0;
     const pointText = p.deliveryPoint || `Botón de Pánico - ${p.faculty}`;
     const speechText = `${p.name}, precio ${p.price} pesos. Vendedor: ${p.seller}. Punto de entrega: ${pointText}`;
 
+    // Menú de 3 puntos para el Administrador
+    const adminMenuHTML = isAdmin ? `
+      <div class="admin-dropdown" onclick="event.stopPropagation();">
+        <button class="btn-admin-dots" title="Opciones de Moderación"><i class="fa-solid fa-ellipsis-vertical"></i></button>
+        <div class="admin-dropdown-content">
+          <a onclick="suspendProduct(${p.id})"><i class="fa-solid fa-ban" style="color:#d97706;"></i> Suspender</a>
+          <a onclick="sendWarning('${p.sellerEmail || p.seller}', ${p.id})"><i class="fa-solid fa-triangle-exclamation" style="color:#2563eb;"></i> Advertencia</a>
+          <a onclick="confirmDeleteProduct(${p.id})"><i class="fa-solid fa-trash" style="color:#dc2626;"></i> Eliminar Prohibido</a>
+        </div>
+      </div>
+    ` : '';
+
     return `
-      <div class="card ${isSoldOut ? 'out-of-stock' : ''}" onmouseenter="speakText('${speechText.replace(/'/g, "\\'")}')" tabindex="0" role="article" aria-label="${speechText}">
-        <div class="card-img-wrap">
+      <div class="card ${isSoldOut ? 'out-of-stock' : ''}" style="position: relative; overflow: visible;" onmouseenter="speakText('${speechText.replace(/'/g, "\\'")}')" tabindex="0" role="article" aria-label="${speechText}">
+        
+        ${adminMenuHTML}
+
+        <div class="card-img-wrap" style="border-radius: var(--radius) var(--radius) 0 0; overflow: hidden;">
           <img class="card-img" src="${p.image}" alt="${p.name}" onerror="this.src='https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?auto=format&fit=crop&w=600&q=80'">
           <span class="category-tag">${p.category}</span>
           ${isSoldOut ? `<span class="soldout-tag"><i class="fa-solid fa-ban"></i> AGOTADO</span>` : ''}

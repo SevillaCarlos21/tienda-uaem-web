@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>UAEM Store Web - Panel de Administración</title>
+  
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="main.css">
+  <link rel="stylesheet" href="admin.css">
+
+  <!-- Chart.js para las gráficas -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- Supabase & SweetAlert2 -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+</head>
+<body>
+
+  <header>
+    <!-- Navbar estándar -->
+    <div class="navbar">
+      <a href="index.html" class="brand">
+        <img src="https://upload.wikimedia.org/wikipedia/commons/2/25/Logo_uaem_morelos.png" alt="Escudo UAEM">
+        <div><div class="brand-title">UAEM <span>Store Admin</span></div></div>
+      </a>
+      <div class="nav-actions">
+        <a href="index.html" class="nav-btn"><i class="fa-solid fa-store"></i> Ir al Catálogo</a>
+        <a href="admin.html" class="nav-btn active"><i class="fa-solid fa-chart-line"></i> Panel Admin</a>
+        <button class="btn-logout-navbar" onclick="logout()"><i class="fa-solid fa-right-from-bracket"></i> Salir</button>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <h2><i class="fa-solid fa-user-shield"></i> Panel de Control Universitario</h2>
+    
+    <!-- Tarjetas de Resumen (KPIs) -->
+    <div class="admin-kpi-grid">
+      <div class="kpi-card">
+        <i class="fa-solid fa-chart-bar"></i>
+        <div>
+          <span class="kpi-title">Ventas Totales</span>
+          <h3 id="kpiTotalSales">$0.00 MXN</h3>
+        </div>
+      </div>
+      <div class="kpi-card">
+        <i class="fa-solid fa-boxes-stacked"></i>
+        <div>
+          <span class="kpi-title">Productos Publicados</span>
+          <h3 id="kpiTotalProducts">0</h3>
+        </div>
+      </div>
+      <div class="kpi-card">
+        <i class="fa-solid fa-users"></i>
+        <div>
+          <span class="kpi-title">Usuarios Activos</span>
+          <h3 id="kpiTotalUsers">0</h3>
+        </div>
+      </div>
+    </div>
+
+    <!-- Contenedor de la Gráfica de Ventas -->
+    <div class="table-container" style="margin-top: 25px;">
+      <div class="table-header">
+        <h2><i class="fa-solid fa-chart-line"></i> Histórico de Ventas por Día</h2>
+      </div>
+      <div style="position: relative; height: 350px; width: 100%;">
+        <canvas id="salesChart"></canvas>
+      </div>
+    </div>
+  </main>
+
+  <script src="main.js"></script>
+  <script src="admin.js"></script>
+</body>
+</html>
