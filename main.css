@@ -277,8 +277,31 @@ footer { background: var(--uaem-blue-dark); color: white; text-align: center; pa
 .out-alert { background: #fee2e2; color: #991b1b; padding: 4px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: 700; display: inline-flex; align-items: center; gap: 5px; margin-top: 4px; }
 
 /* ACCESIBILIDAD FLOTANTE */
-.btn-accessibility-floating { position: fixed !important; bottom: 25px !important; right: 25px !important; width: 70px !important; height: 70px !important; border-radius: 50% !important; background: var(--uaem-blue-main) !important; color: var(--uaem-gold) !important; border: 4px solid var(--uaem-gold) !important; font-size: 2.2rem !important; cursor: pointer !important; z-index: 2147483647 !important; pointer-events: auto !important; box-shadow: 0 8px 25px rgba(0, 0, 0, 0.6), 0 0 15px rgba(212, 175, 55, 0.8) !important; display: flex !important; align-items: center !important; justify-content: center !important; transition: transform 0.2s, background 0.2s !important; }
-.btn-accessibility-floating:hover { transform: scale(1.1) !important; background: var(--uaem-blue-light) !important; }
+.btn-accessibility-floating { 
+  position: fixed !important; 
+  bottom: 30px !important; 
+  right: 30px !important; 
+  width: 160px !important;        /* Aumentado a 160px */
+  height: 160px !important;       /* Aumentado a 160px */
+  border-radius: 50% !important; 
+  background: var(--uaem-blue-main) !important; 
+  color: var(--uaem-gold) !important; 
+  border: 8px solid var(--uaem-gold) !important; /* Borde más grueso para resaltar */
+  font-size: 5.5rem !important;    /* Icono ultra grande */
+  cursor: pointer !important; 
+  z-index: 2147483647 !important; 
+  pointer-events: auto !important; 
+  box-shadow: 0 15px 40px rgba(0, 0, 0, 0.8), 0 0 30px rgba(212, 175, 55, 1) !important; 
+  display: flex !important; 
+  align-items: center !important; 
+  justify-content: center !important; 
+  transition: transform 0.2s, background 0.2s !important; 
+}
+
+.btn-accessibility-floating:hover { 
+  transform: scale(1.05) !important; 
+  background: var(--uaem-blue-light) !important; 
+}
 
 .accessibility-panel { position: fixed !important; bottom: 105px !important; right: 20px !important; width: 500px; max-width: 92vw; max-height: 80vh; overflow-y: auto; background: var(--uaem-white); border-radius: 16px; box-shadow: 0 15px 45px rgba(0,0,0,0.45); border: 3px solid var(--uaem-gold); padding: 20px; z-index: 2147483646 !important; pointer-events: auto !important; display: none; flex-direction: column; gap: 16px; }
 .accessibility-panel.active { display: flex; }
@@ -415,4 +438,12 @@ footer { background: var(--uaem-blue-dark); color: white; text-align: center; pa
     grid-template-columns: repeat(2, 1fr);
     gap: 8px;
   }
+}
+
+.btn-accessibility-floating {
+    width: 110px !important;
+    height: 110px !important;
+    font-size: 3.8rem !important;
+    bottom: 20px !important;
+    right: 20px !important;
 }
