@@ -110,3 +110,149 @@ function sendWarning(sellerEmail, productId) {
     }
   });
 }
+
+// 1. FUNCIÓN DE ADVERTENCIA CON MOTIVO
+function sendWarning(sellerEmail, productId) {
+  const prod = products.find(p => p.id === productId);
+  const targetEmail = sellerEmail || (prod ? prod.sellerEmail : null);
+  const targetSellerName = prod ? prod.seller : null;
+
+  Swal.fire({
+    title: 'Emitir Advertencia',
+    html: `<p style="font-size:0.85rem; color:#64748b; margin-bottom:10px;">Escribe el motivo detallado de la advertencia para el usuario:</p>`,
+    input: 'textarea',
+    inputPlaceholder: 'Ej. Publicación fuera de norma o contenido no permitido...',
+    showCancelButton: true,
+    confirmButtonText: 'Enviar Notificación',
+    confirmButtonColor: '#d97706',
+    inputValidator: (value) => {
+      if (!value) return '¡Debes escribir un motivo!';
+    }
+  }).then((result) => {
+    if (result.isConfirmed && result.value) {
+      const reason = result.value;
+      const now = new Date();
+      const dateStr = now.toLocaleDateString('es-MX') + ' ' + now.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
+
+      // Guardar notificación de advertencia
+      const allNotifs = JSON.parse(localStorage.getItem('uaem_user_notifications')) || [];
+      allNotifs.unshift({
+        id: Date.now(),
+        targetEmail: targetEmail ? targetEmail.toLowerCase() : '',
+        targetName: targetSellerName ? targetSellerName.toLowerCase() : '',
+        title: '⚠️ Advertencia del Administrador',
+        message: `Has recibido una advertencia sobre tu artículo "${prod ? prod.name : 'Publicación'}". Motivo: "${reason}"`,
+        date: dateStr,
+        type: 'warning'
+      });
+      localStorage.setItem('uaem_user_notifications', JSON.stringify(allNotifs));
+
+      Swal.fire('Enviado', 'La advertencia se envió y se notificó al usuario correctamente.', 'success');
+    }
+  });
+}
+
+// 2. FUNCIÓN DE SUSPENDER / DESHABILITAR PRODUCTO CON MOTIVO
+function suspendProduct(productId) {
+  const prod = products.find(p => p.id === productId);
+  if (!prod) return;
+
+  Swal.fire({
+    title: 'Suspender / Deshabilitar Producto',
+    html: `<p style="font-size:0.85rem; color:#64748b; margin-bottom:10px;">Escribe el motivo por el cual este producto será suspendido temporalmente:</p>`,
+    input: 'textarea',
+    inputPlaceholder: 'Ej. Producto temporalmente inhabilitado por revisión...',
+    icon: 'info',
+    showCancelButton: true,
+    confirmButtonText: 'Suspender y Notificar',
+    confirmButtonColor: '#d97706',
+    inputValidator: (value) => {
+      if (!value) return '¡Debes especificar el motivo!';
+    }
+  }).then(async (result) => {
+    if (result.isConfirmed && result.value) {
+      const reason = result.value;
+      const now = new Date();
+      const dateStr = now.toLocaleDateString('es-MX') + ' ' + now.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
+
+      // Actualizamos el stock a 0 o ponemos un estado en Supabase (según tu lógica de stock)
+      const { error } = await supabaseClient.from('productos').update({ stock: 0 }).eq('id', productId);
+
+      if (!error) {
+        const allNotifs = JSON.parse(localStorage.getItem('uaem_user_notifications')) || [];
+        allNotifs.unshift({
+          id: Date.now(),
+          targetEmail: prod.seller_email ? prod.seller_email.toLowerCase() : '',
+          targetName: prod.seller ? prod.seller.toLowerCase() : '',
+          title: '🔒 Producto Suspendido',
+          message: `Tu artículo "${prod.name}" ha sido suspendido/deshabilitado. Motivo: "${reason}"`,
+          date: dateStr,
+          type: 'warning'
+        });
+        localStorage.setItem('uaem_user_notifications', JSON.stringify(allNotifs));
+
+        await fetchProductsFromSupabase();
+        if (typeof renderProducts === 'function') renderProducts();
+
+        Swal.fire('Suspendido', 'El producto fue deshabilitado y se notificó al usuario.', 'success');
+      } else {
+        Swal.fire('Error', error.message, 'error');
+      }
+    }
+  });
+}
+
+// 3. FUNCIÓN DE ELIMINAR PRODUCTO PROHIBIDO CON MOTIVO
+async function confirmDeleteProduct(id) {
+  const prod = products.find(p => p.id === id);
+  const sellerEmail = prod ? prod.seller_email : null;
+  const sellerName = prod ? prod.seller : null;
+
+  Swal.fire({
+    title: '¿Eliminar producto prohibido?',
+    html: `<p style="font-size:0.85rem; color:#64748b; margin-bottom:10px;">Escribe el motivo por el cual este producto fue eliminado permanentemente:</p>`,
+    input: 'textarea',
+    inputPlaceholder: 'Ej. Violación grave de las normativas de comercio UAEM...',
+    icon: 'warning',
+    showCancelButton: true,
+    confirmButtonColor: '#d33',
+    cancelButtonColor: '#002b49',
+    confirmButtonText: 'Sí, eliminar y notificar',
+    cancelButtonText: 'Cancelar',
+    inputValidator: (value) => {
+      if (!value) return '¡Debes especificar el motivo de la eliminación!';
+    }
+  }).then(async (result) => {
+    if (result.isConfirmed && result.value) {
+      const reason = result.value;
+      const now = new Date();
+      const dateStr = now.toLocaleDateString('es-MX') + ' ' + now.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
+
+      // 1. Eliminar de Supabase
+      const { error } = await supabaseClient.from('productos').delete().eq('id', id);
+
+      if (!error) {
+        // 2. Guardar notificación obligatoria
+        const allNotifs = JSON.parse(localStorage.getItem('uaem_user_notifications')) || [];
+        allNotifs.unshift({
+          id: Date.now(),
+          targetEmail: sellerEmail ? sellerEmail.toLowerCase() : '',
+          targetName: sellerName ? sellerName.toLowerCase() : '',
+          title: '🚫 Producto Eliminado',
+          message: `Tu artículo "${prod ? prod.name : 'Publicación'}" fue dado de baja definitiva. Motivo: "${reason}"`,
+          date: dateStr,
+          type: 'danger'
+        });
+        localStorage.setItem('uaem_user_notifications', JSON.stringify(allNotifs));
+
+        await fetchProductsFromSupabase();
+        if (typeof renderProducts === 'function') renderProducts();
+        if (typeof renderMyProducts === 'function') renderMyProducts();
+
+        Swal.fire('Eliminado', 'El producto se eliminó y se generó la notificación con éxito.', 'success');
+      } else {
+        Swal.fire('Error', error.message, 'error');
+      }
+    }
+  });
+}

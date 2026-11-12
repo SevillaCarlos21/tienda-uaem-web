@@ -27,9 +27,30 @@
         <a href="index.html" class="nav-btn"><i class="fa-solid fa-store"></i> Catálogo</a>
         <a href="mis-compras.html" class="nav-btn"><i class="fa-solid fa-receipt"></i> Mis Compras</a>
         <a href="mis-productos.html" class="nav-btn" id="btnNavMyProducts" style="display: none;"><i class="fa-solid fa-boxes-packing"></i> Mis Productos</a>
-        <button class="nav-btn" onclick="openAddModal()"><i class="fa-solid fa-plus-circle"></i> Vender</button>
+        
         <a href="carrito.html" class="nav-btn active"><i class="fa-solid fa-cart-shopping"></i> Carrito <span class="badge" id="cartBadge">0</span></a>
         
+        <!-- ========================================== -->
+        <!-- 🔔 BOTÓN DE NOTIFICACIONES Y DROPDOWN      -->
+        <!-- ========================================== -->
+        <div class="notification-wrapper" style="position: relative; display: inline-block;">
+          <button class="nav-btn" onclick="toggleNotificationDropdown()" title="Notificaciones del Sistema" style="position: relative;">
+            <i class="fa-solid fa-bell"></i>
+            <span class="badge" id="notifBadge" style="display: none;">0</span>
+          </button>
+          
+          <div class="notification-dropdown" id="notifDropdown">
+            <div class="notif-header">
+              <span><i class="fa-solid fa-bell"></i> </span>
+              <span style="font-size: 0.75rem; cursor: pointer; color: var(--uaem-gold);" onclick="clearNotifications()">Limpiar</span>
+            </div>
+            <div class="notif-body" id="notifListContainer">
+              <!-- Las alertas se inyectarán aquí dinámicamente -->
+            </div>
+          </div>
+        </div>
+        <!-- ========================================== -->
+
         <div class="user-pill">
           <div class="avatar" id="userAvatar">CS</div>
           <div class="user-info"><span class="user-name" id="userNameDisplay">Usuario</span><span class="user-role" id="userRoleDisplay">Alumno</span></div>
