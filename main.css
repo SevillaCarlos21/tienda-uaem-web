@@ -628,3 +628,29 @@ body.high-contrast-dark .notif-title {
 body.high-contrast-dark .notif-msg {
   color: #ffffff !important;
 }
+
+
+/* ==========================================
+   ESTILO EQUILIBRADO PARA EL BOTÓN DE NOTIFICACIONES
+   ========================================== */
+
+/* Botón de la campanita ligeramente más grande que el resto */
+.notification-wrapper button.nav-btn {
+    font-size: 1.15rem !important; 
+    padding: 10px 14px !important; 
+    min-width: 42px !important;
+    min-height: 42px !important;
+    border-radius: 8px !important; /* Bordes redondeados sutiles */
+    transition: all 0.2s ease;
+}
+
+/* Efecto hover suave */
+.notification-wrapper button.nav-btn:hover {
+    background-color: rgba(0, 43, 73, 0.08) !important;
+}
+
+/* Ajuste proporcional para el badge (número de notificaciones) */
+.notification-wrapper button.nav-btn .badge {
+    font-size: 0.7rem;
+    padding: 2px 5px;
+}
