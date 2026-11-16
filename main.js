@@ -43,6 +43,8 @@ window.addEventListener('DOMContentLoaded', async () => {
     return;
   }
 
+  
+
   if (!isLoginPage) {
     updateUserUI();
     updateCartBadge();
