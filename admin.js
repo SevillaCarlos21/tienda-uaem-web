@@ -82,36 +82,7 @@ async function loadAdminDashboard() {
   }
 }
 
-// Acción de suspender producto
-async function suspendProduct(productId) {
-  const { error } = await supabaseClient
-    .from('productos')
-    .update({ stock: 0 }) // O cambiando un campo 'estado' a 'Suspendido'
-    .eq('id', productId);
-
-  if (!error) {
-    Swal.fire('Producto Suspendido', 'El producto ha sido inhabilitado del catálogo.', 'warning');
-    if (typeof fetchProductsFromSupabase === 'function') fetchProductsFromSupabase();
-  }
-}
-
-// Acción de advertencia al vendedor
-function sendWarning(sellerEmail, productId) {
-  Swal.fire({
-    title: 'Enviar Advertencia al Vendedor',
-    input: 'textarea',
-    inputPlaceholder: 'Escribe el motivo del reporte o incumplimiento del reglamento UAEM...',
-    showCancelButton: true,
-    confirmButtonText: 'Notificar',
-    confirmButtonColor: '#d97706'
-  }).then((result) => {
-    if (result.isConfirmed && result.value) {
-      Swal.fire('Advertencia Enviada', `Se ha registrado el aviso para ${sellerEmail}`, 'success');
-    }
-  });
-}
-
-// 1. FUNCIÓN DE ADVERTENCIA CON MOTIVO
+// 1. FUNCIÓN DE ADVERTENCIA CON MOTIVO (Única versión optimizada)
 function sendWarning(sellerEmail, productId) {
   const prod = products.find(p => p.id === productId);
   const targetEmail = sellerEmail || (prod ? prod.sellerEmail : null);
@@ -175,7 +146,6 @@ function suspendProduct(productId) {
       const now = new Date();
       const dateStr = now.toLocaleDateString('es-MX') + ' ' + now.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
 
-      // Actualizamos el stock a 0 o ponemos un estado en Supabase (según tu lógica de stock)
       const { error } = await supabaseClient.from('productos').update({ stock: 0 }).eq('id', productId);
 
       if (!error) {
@@ -228,11 +198,9 @@ async function confirmDeleteProduct(id) {
       const now = new Date();
       const dateStr = now.toLocaleDateString('es-MX') + ' ' + now.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
 
-      // 1. Eliminar de Supabase
       const { error } = await supabaseClient.from('productos').delete().eq('id', id);
 
       if (!error) {
-        // 2. Guardar notificación obligatoria
         const allNotifs = JSON.parse(localStorage.getItem('uaem_user_notifications')) || [];
         allNotifs.unshift({
           id: Date.now(),
