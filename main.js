@@ -10,6 +10,7 @@ const supabaseClient = (window.supabase && window.supabase.createClient)
 
 let currentUser = JSON.parse(localStorage.getItem('uaem_current_user')) || null;
 let products = [];
+let userNotifications = [];
 let cart = JSON.parse(localStorage.getItem('uaem_cart')) || [];
 let salesHistory = JSON.parse(localStorage.getItem('uaem_sales_history')) || [];
 let currentFilter = 'all';
@@ -43,9 +44,7 @@ window.addEventListener('DOMContentLoaded', async () => {
     return;
   }
 
-  // ==========================================
-  // FILTRADO DE INTERFAZ: OCULTAR COMPRAS, CARRITO Y NOTIFICACIONES AL ADMIN EN CATÁLOGO
-  // ==========================================
+  // Ocultar elementos de cliente al Admin en catálogo
   if (currentUser && (currentUser.email === 'admin@sistema.uaem' || currentUser.role?.includes('Administrador'))) {
     const misComprasBtn = document.getElementById('navMisCompras');
     const carritoBtn = document.getElementById('navCarrito');
@@ -60,8 +59,12 @@ window.addEventListener('DOMContentLoaded', async () => {
     updateUserUI();
     updateCartBadge();
     
-    // Cargar productos desde Supabase
+    // Cargar productos y notificaciones desde Supabase
     await fetchProductsFromSupabase();
+    await fetchUserNotifications();
+    
+    // Activar escucha en tiempo real (Advertencias y Suspensiones)
+    initRealtimeListeners();
     
     checkVendorStatus();
     
@@ -73,7 +76,7 @@ window.addEventListener('DOMContentLoaded', async () => {
 });
 
 // ==========================================
-// 3. CONSULTA A SUPABASE (PRODUCTOS)
+// 3. CONSULTA A SUPABASE Y TIEMPO REAL
 // ==========================================
 async function fetchProductsFromSupabase() {
   if (!supabaseClient) return;
@@ -96,6 +99,8 @@ async function fetchProductsFromSupabase() {
         category: (p.categoria || 'otros').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, ""),
         price: parseFloat(p.precio || 0),
         stock: parseInt(p.stock || 0),
+        suspendido: Boolean(p.suspendido),
+        motivoSuspension: p.motivo_suspension || '',
         schedule: p.horario || 'Turno Matutino (7:00 AM - 1:00 PM)',
         deliveryPoint: p.delivery_point || 'Botón de Pánico - Campus UAEM',
         image: p.image || 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?auto=format&fit=crop&w=600&q=80',
@@ -110,6 +115,75 @@ async function fetchProductsFromSupabase() {
   }
 }
 
+async function fetchUserNotifications() {
+  if (!supabaseClient || !currentUser) return;
+  const isAdmin = currentUser.role?.includes('Administrador') || currentUser.email === 'admin@sistema.uaem';
+  if (isAdmin) return;
+
+  try {
+    const { data, error } = await supabaseClient
+      .from('notificaciones')
+      .select('*')
+      .eq('usuario_email', currentUser.email.toLowerCase().trim())
+      .order('created_at', { ascending: false });
+
+    if (!error && data) {
+      userNotifications = data;
+      renderUserNotifications();
+    }
+  } catch (err) {
+    console.error("Error al cargar notificaciones:", err);
+  }
+}
+
+function initRealtimeListeners() {
+  if (!supabaseClient || !currentUser) return;
+
+  const userEmail = (currentUser.email || '').toLowerCase().trim();
+
+  // 1. Escuchar notificaciones y advertencias en tiempo real
+  supabaseClient
+    .channel('notificaciones-realtime')
+    .on(
+      'postgres_changes',
+      {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'notificaciones',
+        filter: `usuario_email=eq.${userEmail}`
+      },
+      async (payload) => {
+        const notif = payload.new;
+        userNotifications.unshift(notif);
+        renderUserNotifications();
+
+        await Swal.fire({
+          icon: notif.tipo === 'danger' ? 'error' : (notif.tipo === 'success' ? 'success' : 'warning'),
+          title: notif.titulo,
+          text: notif.mensaje,
+          confirmButtonColor: '#002b49',
+          confirmButtonText: 'Entendido'
+        });
+      }
+    )
+    .subscribe();
+
+  // 2. Escuchar suspensiones, habilitaciones o cambios de stock en tiempo real
+  supabaseClient
+    .channel('productos-realtime')
+    .on(
+      'postgres_changes',
+      { event: '*', schema: 'public', table: 'productos' },
+      async () => {
+        await fetchProductsFromSupabase();
+        checkVendorStatus();
+        if (document.getElementById('productsGrid')) renderProducts();
+        if (document.getElementById('myProductsTableBody')) renderMyProducts();
+      }
+    )
+    .subscribe();
+}
+
 // ==========================================
 // 4. AUTENTICACIÓN Y REGISTRO (CON SOPORTE ADMIN)
 // ==========================================
@@ -122,7 +196,7 @@ async function registerUserSubmit(e) {
   if (e) e.preventDefault();
 
   const name = document.getElementById('regName').value.trim();
-  const email = document.getElementById('regEmail').value.trim();
+  const email = document.getElementById('regEmail').value.trim().toLowerCase();
   const password = document.getElementById('regPassword').value;
   const role = document.getElementById('regRole').value;
   const faculty = document.getElementById('regFaculty').value;
@@ -174,7 +248,6 @@ async function loginUserSubmit(e) {
   Swal.fire({ title: 'Verificando...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
 
   try {
-    // 1. ACCESO DIRECTO ADMINISTRADOR
     if (userInput.toLowerCase() === 'admin' && password === 'admin123') {
       currentUser = {
         id: 9999,
@@ -190,7 +263,6 @@ async function loginUserSubmit(e) {
       });
     }
 
-    // 2. ACCESO NORMAL ALUMNOS / PROFESORES (@uaem.mx)
     if (!validateUAEMEmail(userInput)) {
       return Swal.fire({ icon: 'error', title: 'Dominio Inválido', text: 'El correo ingresado debe ser institucional (@uaem.mx o @uaem.edu.mx) o un usuario Administrador válido.' });
     }
@@ -198,7 +270,7 @@ async function loginUserSubmit(e) {
     const { data: user, error } = await supabaseClient
       .from('usuarios')
       .select('*')
-      .eq('correo', userInput)
+      .eq('correo', userInput.toLowerCase())
       .eq('password', password)
       .maybeSingle();
 
@@ -355,7 +427,6 @@ function updateUserUI() {
   const isAdmin = currentUser.role === 'Administrador / Moderador UAEM' || currentUser.email === 'admin@sistema.uaem';
   
   if (isAdmin) {
-    // Ocultar elementos de clientes en el catálogo
     const btnPurchases = document.querySelector('a[href="mis-compras.html"]');
     const btnMyProducts = document.getElementById('btnNavMyProducts');
     const btnSell = document.querySelector('button[onclick="openAddModal()"]');
@@ -368,7 +439,6 @@ function updateUserUI() {
     if (btnCart) btnCart.style.display = 'none';
     if (notifWrapper) notifWrapper.style.display = 'none';
 
-    // Asegurar que el botón de Panel Admin aparezca dinámicamente si no estamos en admin.html
     const navActions = document.querySelector('.nav-actions');
     const alreadyHasAdminBtn = document.getElementById('btnNavAdmin') || document.querySelector('a[href="admin.html"]');
 
@@ -490,8 +560,12 @@ function renderProducts() {
   const grid = document.getElementById('productsGrid');
   if (!grid) return;
   const search = document.getElementById('searchInput') ? document.getElementById('searchInput').value.toLowerCase() : '';
+  const isAdmin = currentUser && (currentUser.role === 'Administrador / Moderador UAEM' || currentUser.name.includes('Administrador'));
 
   const filtered = products.filter(p => {
+    // Ocultar productos suspendidos a usuarios normales (el Admin sí los ve para poder rehabilitarlos)
+    if (p.suspendido && !isAdmin) return false;
+
     const matchesCategory = currentFilter === 'all' || p.category === currentFilter;
     const matchesSearch = p.name.toLowerCase().includes(search) || p.seller.toLowerCase().includes(search) || p.faculty.toLowerCase().includes(search);
     return matchesCategory && matchesSearch;
@@ -502,10 +576,9 @@ function renderProducts() {
     return;
   }
 
-  const isAdmin = currentUser && (currentUser.role === 'Administrador / Moderador UAEM' || currentUser.name.includes('Administrador'));
-
   grid.innerHTML = filtered.map(p => {
     const isSoldOut = p.stock <= 0;
+    const isUnavailable = p.suspendido || isSoldOut;
     const pointText = p.deliveryPoint || `Botón de Pánico - ${p.faculty}`;
     const speechText = `${p.name}, precio ${p.price} pesos. Vendedor: ${p.seller}. Punto de entrega: ${pointText}`;
 
@@ -513,23 +586,26 @@ function renderProducts() {
       <div class="admin-dropdown" onclick="event.stopPropagation();">
         <button class="btn-admin-dots" title="Opciones de Moderación"><i class="fa-solid fa-ellipsis-vertical"></i></button>
         <div class="admin-dropdown-content">
-          ${isSoldOut 
+          ${p.suspendido 
             ? `<a onclick="enableProduct(${p.id})"><i class="fa-solid fa-check-circle" style="color:#059669;"></i> Habilitar Producto</a>` 
             : `<a onclick="suspendProduct(${p.id})"><i class="fa-solid fa-ban" style="color:#d97706;"></i> Suspender</a>`
           }
-          <a onclick="sendWarning('${p.sellerEmail || p.seller}', ${p.id})"><i class="fa-solid fa-triangle-exclamation" style="color:#2563eb;"></i> Advertencia</a>
+          <a onclick="sendWarning('${p.sellerEmail}', ${p.id})"><i class="fa-solid fa-triangle-exclamation" style="color:#2563eb;"></i> Advertencia</a>
           <a onclick="adminDeleteProduct(${p.id})"><i class="fa-solid fa-trash" style="color:#dc2626;"></i> Eliminar Prohibido</a>
         </div>
       </div>
     ` : '';
 
     return `
-      <div class="card ${isSoldOut ? 'out-of-stock' : ''}" style="position: relative; overflow: visible;" onmouseenter="speakText('${speechText.replace(/'/g, "\\'")}')" tabindex="0" role="article" aria-label="${speechText}">
+      <div class="card ${isUnavailable ? 'out-of-stock' : ''}" style="position: relative; overflow: visible;" onmouseenter="speakText('${speechText.replace(/'/g, "\\'")}')" tabindex="0" role="article" aria-label="${speechText}">
         ${adminMenuHTML}
         <div class="card-img-wrap" style="border-radius: var(--radius) var(--radius) 0 0; overflow: hidden;">
           <img class="card-img" src="${p.image}" alt="${p.name}" onerror="this.src='https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?auto=format&fit=crop&w=600&q=80'">
           <span class="category-tag">${p.category}</span>
-          ${isSoldOut ? `<span class="soldout-tag"><i class="fa-solid fa-ban"></i> AGOTADO</span>` : ''}
+          ${p.suspendido 
+            ? `<span class="soldout-tag" style="background:#b91c1c;"><i class="fa-solid fa-lock"></i> SUSPENDIDO</span>` 
+            : (isSoldOut ? `<span class="soldout-tag"><i class="fa-solid fa-ban"></i> AGOTADO</span>` : '')
+          }
         </div>
         <div class="card-body">
           <div>
@@ -543,8 +619,14 @@ function renderProducts() {
             </div>
           </div>
           <div class="card-footer">
-            <span class="stock-info ${isSoldOut ? 'low' : (p.stock <= 2 ? 'low' : '')}"><i class="fa-solid fa-boxes-stacked"></i> ${isSoldOut ? '0 disponibles' : p.stock + ' disponibles'}</span>
-            ${isSoldOut ? `<button class="btn btn-disabled" disabled style="padding: 7px 12px; font-size: 0.85rem;"><i class="fa-solid fa-circle-xmark"></i> Agotado</button>` : `<button class="btn btn-primary" style="padding: 7px 12px; font-size: 0.85rem;" onclick="addToCart(${p.id})"><i class="fa-solid fa-cart-plus"></i> Agregar</button>`}
+            <span class="stock-info ${isUnavailable ? 'low' : (p.stock <= 2 ? 'low' : '')}"><i class="fa-solid fa-boxes-stacked"></i> ${isSoldOut ? '0 disponibles' : p.stock + ' disponibles'}</span>
+            ${p.suspendido 
+              ? `<button class="btn btn-disabled" disabled style="padding: 7px 12px; font-size: 0.85rem;"><i class="fa-solid fa-lock"></i> Suspendido</button>`
+              : (isSoldOut 
+                  ? `<button class="btn btn-disabled" disabled style="padding: 7px 12px; font-size: 0.85rem;"><i class="fa-solid fa-circle-xmark"></i> Agotado</button>` 
+                  : `<button class="btn btn-primary" style="padding: 7px 12px; font-size: 0.85rem;" onclick="addToCart(${p.id})"><i class="fa-solid fa-cart-plus"></i> Agregar</button>`
+                )
+            }
           </div>
         </div>
       </div>`;
@@ -553,7 +635,7 @@ function renderProducts() {
 
 function filterProducts() { renderProducts(); }
 function setCategoryFilter(cat, element) {
-  currentFilter = cat.toLowerCase();
+  currentFilter = cat.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
   document.querySelectorAll('.filter-pills .pill').forEach(el => el.classList.remove('active'));
   element.classList.add('active');
   renderProducts();
@@ -607,7 +689,7 @@ async function saveProductSubmit(e) {
   e.preventDefault();
   const newProductDB = {
     nombre: document.getElementById('pName').value.trim(),
-    categoria: document.getElementById('pCategory').value.toLowerCase(),
+    categoria: document.getElementById('pCategory').value,
     precio: parseFloat(document.getElementById('pPrice').value),
     stock: parseInt(document.getElementById('pStock').value),
     horario: document.getElementById('pSchedule').value,
@@ -615,7 +697,8 @@ async function saveProductSubmit(e) {
     image: document.getElementById('pImage').value.trim() || 'https://images.unsplash.com/photo-1544816155-12df9643f363?auto=format&fit=crop&w=600&q=80',
     seller: currentUser.name,
     faculty: currentUser.faculty,
-    seller_email: currentUser.email
+    seller_email: currentUser.email.toLowerCase().trim(),
+    suspendido: false
   };
 
   Swal.fire({ title: 'Guardando...', text: 'Publicando artículo en Supabase', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
@@ -626,6 +709,7 @@ async function saveProductSubmit(e) {
   } else {
     closeProductModal();
     await fetchProductsFromSupabase();
+    checkVendorStatus();
     Swal.fire({ icon: 'success', title: '¡Producto Publicado!', text: 'El artículo ha sido almacenado en Supabase.', confirmButtonColor: '#002b49' }).then(() => { 
       if (window.location.pathname.includes('mis-productos.html')) renderMyProducts();
       else renderProducts();
@@ -635,7 +719,9 @@ async function saveProductSubmit(e) {
 
 function addToCart(productId) {
   const product = products.find(p => p.id === productId);
-  if (!product || product.stock <= 0) return Swal.fire({ icon: 'error', title: 'Producto Agotado', text: 'Este artículo ya no cuenta con stock.', confirmButtonColor: '#002b49' });
+  if (!product || product.suspendido || product.stock <= 0) {
+    return Swal.fire({ icon: 'error', title: 'No Disponible', text: 'Este artículo está agotado o suspendido.', confirmButtonColor: '#002b49' });
+  }
   const cartItem = cart.find(item => item.id === productId);
   if (cartItem) {
     if (cartItem.qty < product.stock) cartItem.qty++;
@@ -778,7 +864,13 @@ function renderMyProducts() {
       const isOut = p.stock <= 0;
       return `
         <tr>
-          <td><strong>${p.name}</strong>${isOut ? `<br><span class="out-alert"><i class="fa-solid fa-triangle-exclamation"></i> AGOTADO</span>` : ''}</td>
+          <td>
+            <strong>${p.name}</strong>
+            ${p.suspendido 
+              ? `<br><span class="out-alert" style="background:#fee2e2; padding:2px 6px; border-radius:4px; display:inline-block; margin-top:4px;"><i class="fa-solid fa-lock"></i> SUSPENDIDO POR ADMIN${p.motivoSuspension ? ': ' + p.motivoSuspension : ''}</span>` 
+              : (isOut ? `<br><span class="out-alert"><i class="fa-solid fa-triangle-exclamation"></i> AGOTADO</span>` : '')
+            }
+          </td>
           <td><span class="category-tag" style="position:static;">${p.category}</span></td>
           <td><strong>$${p.price.toFixed(2)} MXN</strong></td>
           <td><strong style="${isOut ? 'color: var(--danger); font-size:1.05rem;' : ''}">${p.stock} pzas ${isOut ? '(Sin Stock)' : ''}</strong></td>
@@ -788,7 +880,10 @@ function renderMyProducts() {
           </td>
           <td>
             <div style="display:flex; gap:8px;">
-              <button class="btn btn-warning" style="padding: 6px 12px; font-size: 0.8rem;" onclick="openEditProductModal(${p.id})"><i class="fa-solid fa-pen-to-square"></i> Reabastecer / Editar</button>
+              ${p.suspendido 
+                ? `<button class="btn btn-disabled" disabled style="padding: 6px 12px; font-size: 0.8rem;" title="Solo el administrador puede rehabilitar este artículo"><i class="fa-solid fa-lock"></i> Bloqueado por Admin</button>`
+                : `<button class="btn btn-warning" style="padding: 6px 12px; font-size: 0.8rem;" onclick="openEditProductModal(${p.id})"><i class="fa-solid fa-pen-to-square"></i> Reabastecer / Editar</button>`
+              }
               <button class="btn btn-danger" style="padding: 6px 12px; font-size: 0.8rem;" onclick="confirmDeleteProduct(${p.id})"><i class="fa-solid fa-trash"></i> Eliminar</button>
             </div>
           </td>
@@ -820,6 +915,16 @@ function renderSalesHistory() {
 function openEditProductModal(id) {
   const prod = products.find(p => p.id === id);
   if (!prod) return;
+
+  if (prod.suspendido) {
+    return Swal.fire({
+      icon: 'error',
+      title: 'Producto Suspendido',
+      text: 'Este artículo fue suspendido por el administrador y no puede modificarse hasta ser rehabilitado.',
+      confirmButtonColor: '#002b49'
+    });
+  }
+
   Swal.fire({
     title: 'Editar / Reabastecer Stock',
     html: `<div style="text-align:left;"><label style="font-weight:700; font-size:0.85rem; color:#002b49;">Precio ($ MXN):</label><input id="swal-price" type="number" class="swal2-input" value="${prod.price}" style="margin: 8px 0 15px 0; width:100%;"><label style="font-weight:700; font-size:0.85rem; color:#002b49;">Unidades Disponibles (Stock):</label><input id="swal-stock" type="number" class="swal2-input" value="${prod.stock}" min="0" style="margin: 8px 0 15px 0; width:100%;"><label style="font-weight:700; font-size:0.85rem; color:#002b49;">Horario de Entrega:</label><select id="swal-schedule" class="swal2-input" style="margin: 8px 0 15px 0; width:100%;"><option value="Turno Matutino (7:00 AM - 1:00 PM)" ${prod.schedule?.includes('Matutino') ? 'selected' : ''}>Turno Matutino (7:00 AM - 1:00 PM)</option><option value="Turno Vespertino (1:00 PM - 7:00 PM)" ${prod.schedule?.includes('Vespertino') ? 'selected' : ''}>Turno Vespertino (1:00 PM - 7:00 PM)</option><option value="Horario de Profesor (Previa Cita Cubículo)" ${prod.schedule?.includes('Profesor') ? 'selected' : ''}>Horario de Profesor / Cubículo</option><option value="Entrega Inmediata entre Clases" ${prod.schedule?.includes('Inmediata') ? 'selected' : ''}>Entrega Inmediata entre Clases</option></select></div>`,
@@ -840,17 +945,30 @@ function openEditProductModal(id) {
 }
 
 // ==========================================
-// MÓDULO ÚNICO DE MODERACIÓN Y NOTIFICACIONES
+// MÓDULO ÚNICO DE MODERACIÓN Y NOTIFICACIONES EN TIEMPO REAL
 // ==========================================
+async function createSupabaseNotification(targetEmail, title, message, type = 'warning') {
+  if (!supabaseClient || !targetEmail) return;
+  await supabaseClient.from('notificaciones').insert([{
+    usuario_email: targetEmail.toLowerCase().trim(),
+    titulo: title,
+    mensaje: message,
+    tipo: type,
+    leida: false
+  }]);
+}
 
 function sendWarning(sellerEmail, productId) {
   const prod = products.find(p => p.id === productId);
-  const targetEmail = sellerEmail || (prod ? prod.sellerEmail || prod.seller_email : null);
-  const targetSellerName = prod ? prod.seller : null;
+  const targetEmail = (sellerEmail || (prod ? prod.sellerEmail : '')).toLowerCase().trim();
+
+  if (!targetEmail || !targetEmail.includes('@')) {
+    return Swal.fire('Sin correo asociado', 'Este artículo no tiene un correo institucional válido registrado para notificar.', 'error');
+  }
 
   Swal.fire({
-    title: 'Emitir Advertencia',
-    html: `<p style="font-size:0.85rem; color:#64748b; margin-bottom:10px;">Escribe el motivo detallado de la advertencia para el usuario:</p>`,
+    title: 'Emitir Advertencia en Tiempo Real',
+    html: `<p style="font-size:0.85rem; color:#64748b; margin-bottom:10px;">Escribe el motivo detallado de la advertencia para <strong>${targetEmail}</strong>:</p>`,
     input: 'textarea',
     inputPlaceholder: 'Ej. Publicación fuera de norma o contenido no permitido...',
     showCancelButton: true,
@@ -858,28 +976,19 @@ function sendWarning(sellerEmail, productId) {
     cancelButtonText: 'Cancelar',
     confirmButtonColor: '#d97706',
     inputValidator: (value) => {
-      if (!value) return '¡Debes escribir un motivo obligatoriamente!';
+      if (!value || !value.trim()) return '¡Debes escribir un motivo obligatoriamente!';
     }
-  }).then((result) => {
+  }).then(async (result) => {
     if (result.isConfirmed && result.value) {
-      const reason = result.value;
-      const now = new Date();
-      const dateStr = now.toLocaleDateString('es-MX') + ' ' + now.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
+      const reason = result.value.trim();
+      await createSupabaseNotification(
+        targetEmail,
+        '⚠️ Advertencia del Administrador',
+        `Has recibido una advertencia sobre tu artículo "${prod ? prod.name : 'Publicación'}". Motivo: "${reason}"`,
+        'warning'
+      );
 
-      const allNotifs = JSON.parse(localStorage.getItem('uaem_user_notifications')) || [];
-      allNotifs.unshift({
-        id: Date.now(),
-        targetEmail: targetEmail ? targetEmail.toLowerCase().trim() : '',
-        targetName: targetSellerName ? targetSellerName.toLowerCase().trim() : '',
-        title: '⚠️ Advertencia del Administrador',
-        message: `Has recibido una advertencia sobre tu artículo "${prod ? prod.name : 'Publicación'}". Motivo: "${reason}"`,
-        date: dateStr,
-        type: 'warning'
-      });
-      localStorage.setItem('uaem_user_notifications', JSON.stringify(allNotifs));
-
-      if (typeof renderUserNotifications === 'function') renderUserNotifications();
-      Swal.fire('Enviado', 'La advertencia se envió y se notificó al usuario correctamente.', 'success');
+      Swal.fire('Enviado', 'La advertencia se envió en tiempo real a través de Supabase.', 'success');
     }
   });
 }
@@ -890,7 +999,7 @@ function suspendProduct(productId) {
 
   Swal.fire({
     title: 'Suspender / Deshabilitar Producto',
-    html: `<p style="font-size:0.85rem; color:#64748b; margin-bottom:10px;">Escribe el motivo por el cual este producto será suspendido:</p>`,
+    html: `<p style="font-size:0.85rem; color:#64748b; margin-bottom:10px;">Escribe el motivo por el cual este producto será suspendido (no podrá reactivarse hasta que tú lo habilites):</p>`,
     input: 'textarea',
     inputPlaceholder: 'Ej. Producto temporalmente inhabilitado por revisión...',
     icon: 'info',
@@ -899,34 +1008,29 @@ function suspendProduct(productId) {
     cancelButtonText: 'Cancelar',
     confirmButtonColor: '#d97706',
     inputValidator: (value) => {
-      if (!value) return '¡Debes especificar el motivo!';
+      if (!value || !value.trim()) return '¡Debes especificar el motivo!';
     }
   }).then(async (result) => {
     if (result.isConfirmed && result.value) {
-      const reason = result.value;
-      const now = new Date();
-      const dateStr = now.toLocaleDateString('es-MX') + ' ' + now.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
+      const reason = result.value.trim();
 
-      const { error } = await supabaseClient.from('productos').update({ stock: 0 }).eq('id', productId);
+      const { error } = await supabaseClient
+        .from('productos')
+        .update({ suspendido: true, motivo_suspension: reason })
+        .eq('id', productId);
 
       if (!error) {
-        const allNotifs = JSON.parse(localStorage.getItem('uaem_user_notifications')) || [];
-        allNotifs.unshift({
-          id: Date.now(),
-          targetEmail: prod.seller_email ? prod.seller_email.toLowerCase().trim() : (prod.sellerEmail ? prod.sellerEmail.toLowerCase().trim() : ''),
-          targetName: prod.seller ? prod.seller.toLowerCase().trim() : '',
-          title: '🔒 Producto Suspendido',
-          message: `Tu artículo "${prod.name}" ha sido suspendido. Motivo: "${reason}"`,
-          date: dateStr,
-          type: 'warning'
-        });
-        localStorage.setItem('uaem_user_notifications', JSON.stringify(allNotifs));
+        await createSupabaseNotification(
+          prod.sellerEmail,
+          '🔒 Producto Suspendido',
+          `Tu artículo "${prod.name}" ha sido suspendido por el administrador. Motivo: "${reason}"`,
+          'warning'
+        );
 
         await fetchProductsFromSupabase();
         if (typeof renderProducts === 'function') renderProducts();
-        if (typeof renderUserNotifications === 'function') renderUserNotifications();
 
-        Swal.fire('Suspendido', 'El producto fue deshabilitado y se notificó al usuario.', 'success');
+        Swal.fire('Suspendido', 'El producto fue deshabilitado y permanecerá oculto hasta que lo habilites nuevamente.', 'success');
       } else {
         Swal.fire('Error', error.message, 'error');
       }
@@ -962,8 +1066,7 @@ async function confirmDeleteProduct(id) {
 
 async function adminDeleteProduct(id) {
   const prod = products.find(p => p.id === id);
-  const sellerEmail = prod ? (prod.seller_email || prod.sellerEmail) : null;
-  const sellerName = prod ? prod.seller : null;
+  const sellerEmail = prod ? prod.sellerEmail : null;
 
   Swal.fire({
     title: '¿Eliminar producto prohibido?',
@@ -977,35 +1080,27 @@ async function adminDeleteProduct(id) {
     confirmButtonColor: '#d33',
     cancelButtonColor: '#002b49',
     inputValidator: (value) => {
-      if (!value) return '¡Debes especificar el motivo de la eliminación!';
+      if (!value || !value.trim()) return '¡Debes especificar el motivo de la eliminación!';
     }
   }).then(async (result) => {
     if (result.isConfirmed && result.value) {
-      const reason = result.value;
-      const now = new Date();
-      const dateStr = now.toLocaleDateString('es-MX') + ' ' + now.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
+      const reason = result.value.trim();
 
       const { error } = await supabaseClient.from('productos').delete().eq('id', id);
 
       if (!error) {
-        const allNotifs = JSON.parse(localStorage.getItem('uaem_user_notifications')) || [];
-        allNotifs.unshift({
-          id: Date.now(),
-          targetEmail: sellerEmail ? sellerEmail.toLowerCase().trim() : '',
-          targetName: sellerName ? sellerName.toLowerCase().trim() : '',
-          title: '🚫 Producto Eliminado',
-          message: `Tu artículo "${prod ? prod.name : 'Publicación'}" fue dado de baja definitiva. Motivo: "${reason}"`,
-          date: dateStr,
-          type: 'danger'
-        });
-        localStorage.setItem('uaem_user_notifications', JSON.stringify(allNotifs));
+        await createSupabaseNotification(
+          sellerEmail,
+          '🚫 Producto Eliminado',
+          `Tu artículo "${prod ? prod.name : 'Publicación'}" fue dado de baja definitiva. Motivo: "${reason}"`,
+          'danger'
+        );
 
         await fetchProductsFromSupabase();
         if (typeof renderProducts === 'function') renderProducts();
         if (typeof renderMyProducts === 'function') renderMyProducts();
-        if (typeof renderUserNotifications === 'function') renderUserNotifications();
 
-        Swal.fire('Eliminado', 'El producto se eliminó y se generó la notificación con el motivo redactado.', 'success');
+        Swal.fire('Eliminado', 'El producto se eliminó y se notificó en tiempo real al vendedor.', 'success');
       } else {
         Swal.fire('Error', error.message, 'error');
       }
@@ -1019,9 +1114,9 @@ function enableProduct(productId) {
 
   Swal.fire({
     title: 'Habilitar Producto',
-    html: `<p style="font-size:0.85rem; color:#64748b; margin-bottom:10px;">Ingresa la cantidad de stock inicial para reactivar este artículo:</p>`,
+    html: `<p style="font-size:0.85rem; color:#64748b; margin-bottom:10px;">Confirma la cantidad de stock disponible para reactivar este artículo en el catálogo:</p>`,
     input: 'number',
-    inputValue: 10,
+    inputValue: prod.stock > 0 ? prod.stock : 10,
     inputAttributes: { min: 1, step: 1 },
     showCancelButton: true,
     confirmButtonText: 'Habilitar y Publicar',
@@ -1033,9 +1128,19 @@ function enableProduct(productId) {
   }).then(async (result) => {
     if (result.isConfirmed && result.value) {
       const newStock = parseInt(result.value);
-      const { error } = await supabaseClient.from('productos').update({ stock: newStock }).eq('id', productId);
+      const { error } = await supabaseClient
+        .from('productos')
+        .update({ stock: newStock, suspendido: false, motivo_suspension: null })
+        .eq('id', productId);
 
       if (!error) {
+        await createSupabaseNotification(
+          prod.sellerEmail,
+          '✅ Producto Rehabilitado',
+          `Tu artículo "${prod.name}" ha sido habilitado nuevamente en el catálogo con ${newStock} unidades disponibles.`,
+          'success'
+        );
+
         await fetchProductsFromSupabase();
         if (typeof renderProducts === 'function') renderProducts();
         if (typeof renderMyProducts === 'function') renderMyProducts();
@@ -1048,7 +1153,7 @@ function enableProduct(productId) {
 }
 
 // ==========================================
-// MÓDULO DE NOTIFICACIONES PARA USUARIOS
+// MÓDULO DE NOTIFICACIONES PARA USUARIOS (SUPABASE)
 // ==========================================
 function toggleNotificationDropdown() {
   const dropdown = document.getElementById('notifDropdown');
@@ -1065,59 +1170,53 @@ window.addEventListener('click', (e) => {
   }
 });
 
-function getUserNotifications() {
-  if (!currentUser) return [];
-  const allNotifs = JSON.parse(localStorage.getItem('uaem_user_notifications')) || [];
-  const userEmail = (currentUser.email || '').toLowerCase();
-  const userName = (currentUser.name || '').toLowerCase();
-
-  return allNotifs.filter(n => {
-    const targetEmail = (n.targetEmail || '').toLowerCase();
-    const targetName = (n.targetName || '').toLowerCase();
-    return (targetEmail && targetEmail === userEmail) || (targetName && targetName === userName);
-  });
-}
-
 function renderUserNotifications() {
   const container = document.getElementById('notifListContainer');
   const badge = document.getElementById('notifBadge');
   if (!container) return;
 
-  const notifs = getUserNotifications();
   if (badge) {
-    if (notifs.length > 0) {
-      badge.textContent = notifs.length;
+    if (userNotifications.length > 0) {
+      badge.textContent = userNotifications.length;
       badge.style.display = 'inline-block';
     } else {
       badge.style.display = 'none';
     }
   }
 
-  if (notifs.length === 0) {
+  if (userNotifications.length === 0) {
     container.innerHTML = `<div class="notif-empty"><i class="fa-regular fa-bell-slash" style="font-size: 1.8rem; margin-bottom: 6px; display:block;"></i>No tienes notificaciones nuevas.</div>`;
     return;
   }
 
-  container.innerHTML = notifs.map(n => `
-    <div class="notif-item">
-      <div class="notif-title">
-        <i class="fa-solid ${n.type === 'danger' ? 'fa-triangle-exclamation' : 'fa-circle-exclamation'}" style="color: ${n.type === 'danger' ? '#dc2626' : '#d97706'};"></i>
-        ${n.title}
+  container.innerHTML = userNotifications.map(n => {
+    const fechaFormateada = n.created_at 
+      ? new Date(n.created_at).toLocaleString('es-MX', { dateStyle: 'short', timeStyle: 'short' }) 
+      : 'Reciente';
+    return `
+      <div class="notif-item">
+        <div class="notif-title">
+          <i class="fa-solid ${n.tipo === 'danger' ? 'fa-triangle-exclamation' : (n.tipo === 'success' ? 'fa-circle-check' : 'fa-circle-exclamation')}" style="color: ${n.tipo === 'danger' ? '#dc2626' : (n.tipo === 'success' ? '#059669' : '#d97706')};"></i>
+          ${n.titulo}
+        </div>
+        <div class="notif-msg">${n.mensaje}</div>
+        <div class="notif-date"><i class="fa-regular fa-clock"></i> ${fechaFormateada}</div>
       </div>
-      <div class="notif-msg">${n.message}</div>
-      <div class="notif-date"><i class="fa-regular fa-clock"></i> ${n.date}</div>
-    </div>
-  `).join('');
+    `;
+  }).join('');
 }
 
-function clearNotifications() {
-  if (!currentUser) return;
-  let allNotifs = JSON.parse(localStorage.getItem('uaem_user_notifications')) || [];
-  allNotifs = allNotifs.filter(n => n.targetEmail !== currentUser.email);
-  localStorage.setItem('uaem_user_notifications', JSON.stringify(allNotifs));
-  renderUserNotifications();
-}
+async function clearNotifications() {
+  if (!currentUser || !supabaseClient) return;
+  const userEmail = currentUser.email.toLowerCase().trim();
 
-window.addEventListener('DOMContentLoaded', () => {
-  setTimeout(() => { renderUserNotifications(); }, 500);
-});
+  const { error } = await supabaseClient
+    .from('notificaciones')
+    .delete()
+    .eq('usuario_email', userEmail);
+
+  if (!error) {
+    userNotifications = [];
+    renderUserNotifications();
+  }
+}
