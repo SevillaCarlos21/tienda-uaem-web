@@ -2289,3 +2289,109 @@ async function notifySellerOfSale({
     }
   };
 })();
+
+// ==========================================
+// SOLUCIÓN IDEAL: REALTIME + RESPALDO AUTOMÁTICO DE NOTIFICACIONES
+// ==========================================
+(function enhanceRealtimeNotifications() {
+  if (!supabaseClient || !currentUser) return;
+
+  const myEmail = (currentUser.email || '').toLowerCase().trim();
+  if (!myEmail) return;
+
+  const seenNotifIds = new Set(
+    (Array.isArray(userNotifications) ? userNotifications : [])
+      .map(n => String(n.id ?? `${n.titulo || ''}|${n.mensaje || ''}|${n.created_at || ''}`))
+  );
+
+  async function notifyIfNew(notif) {
+    if (!notif) return;
+    const key = String(notif.id ?? `${notif.titulo || ''}|${notif.mensaje || ''}|${notif.created_at || ''}`);
+    if (seenNotifIds.has(key)) return;
+    seenNotifIds.add(key);
+
+    const existsInList = Array.isArray(userNotifications) &&
+      userNotifications.some(item => String(item.id) === String(notif.id));
+
+    if (!existsInList) {
+      userNotifications.unshift(notif);
+    }
+
+    if (typeof renderUserNotifications === 'function') {
+      renderUserNotifications();
+    }
+
+    if (typeof Swal !== 'undefined' && !Swal.isVisible()) {
+      await Swal.fire({
+        icon: notif.tipo === 'danger' ? 'error' : (notif.tipo === 'success' ? 'success' : 'warning'),
+        title: notif.titulo || 'Nueva notificación',
+        text: notif.mensaje || '',
+        confirmButtonColor: '#002b49',
+        confirmButtonText: 'Entendido'
+      });
+    }
+  }
+
+  // 1. Canal Realtime dedicado y único por sesión (sin filtro estricto que falle por mayúsculas)
+  const channelName = `notificaciones-live-${myEmail.replace(/[^a-z0-9]/g, '_')}-${Date.now()}`;
+  supabaseClient
+    .channel(channelName)
+    .on(
+      'postgres_changes',
+      { event: 'INSERT', schema: 'public', table: 'notificaciones' },
+      async (payload) => {
+        const row = payload.new || {};
+        const target = (row.usuario_email || '').toLowerCase().trim();
+        if (target === myEmail) {
+          await notifyIfNew(row);
+        }
+      }
+    )
+    .subscribe((status) => {
+      if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+        console.warn('Realtime de notificaciones en reconexión, respaldo activo:', status);
+      }
+    });
+
+  // 2. Respaldo automático cada 6 segundos y al regresar a la pestaña
+  async function syncNotificationsFallback() {
+    if (document.hidden) return;
+    try {
+      const { data, error } = await supabaseClient
+        .from('notificaciones')
+        .select('*')
+        .eq('usuario_email', myEmail)
+        .order('created_at', { ascending: false });
+
+      if (error || !Array.isArray(data)) return;
+
+      // Detectar notificaciones nuevas que no habíamos visto
+      const brandNew = data.filter(item => {
+        const key = String(item.id ?? `${item.titulo || ''}|${item.mensaje || ''}|${item.created_at || ''}`);
+        return !seenNotifIds.has(key);
+      });
+
+      userNotifications = data;
+      if (typeof renderUserNotifications === 'function') {
+        renderUserNotifications();
+      }
+
+      // Si ya había notificaciones cargadas antes, avisar de la más reciente nueva
+      if (brandNew.length > 0 && seenNotifIds.size > 0) {
+        await notifyIfNew(brandNew[0]);
+      } else {
+        data.forEach(item => {
+          const key = String(item.id ?? `${item.titulo || ''}|${item.mensaje || ''}|${item.created_at || ''}`);
+          seenNotifIds.add(key);
+        });
+      }
+    } catch (err) {
+      console.warn('Error en respaldo de notificaciones:', err);
+    }
+  }
+
+  setInterval(syncNotificationsFallback, 6000);
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) syncNotificationsFallback();
+  });
+})();
