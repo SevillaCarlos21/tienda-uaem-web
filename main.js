@@ -457,7 +457,63 @@ function updateUserUI() {
       }
     }
   }
+
+  fixAdminMobileRow();
 }
+
+function fixAdminMobileRow() {
+  const isAdmin = Boolean(
+    currentUser &&
+    (currentUser.email === 'admin@sistema.uaem' || currentUser.role?.includes('Administrador'))
+  );
+  if (!isAdmin || window.innerWidth > 768) return;
+
+  const navActions = document.querySelector('header .navbar .nav-actions');
+  if (!navActions) return;
+
+  let row = document.getElementById('adminMobileBtnRow');
+  if (!row) {
+    row = document.createElement('div');
+    row.id = 'adminMobileBtnRow';
+    row.style.cssText = [
+      'order: 3',
+      'flex: 0 0 100%',
+      'width: 100%',
+      'display: flex',
+      'flex-direction: row',
+      'gap: 8px',
+      'margin-top: 4px'
+    ].join('; ');
+    navActions.parentNode.insertBefore(row, navActions.nextSibling);
+  }
+
+  const btns = Array.from(navActions.querySelectorAll('a.nav-btn, button.nav-btn, #btnNavAdmin')).filter(
+    (el) => window.getComputedStyle(el).display !== 'none'
+  );
+
+  btns.forEach((btn) => {
+    btn.style.setProperty('flex', '1 1 0', 'important');
+    btn.style.setProperty('width', '50%', 'important');
+    btn.style.setProperty('max-width', '50%', 'important');
+    btn.style.setProperty('height', '38px', 'important');
+    btn.style.setProperty('min-height', '38px', 'important');
+    btn.style.setProperty('padding', '0 8px', 'important');
+    btn.style.setProperty('font-size', '0.8rem', 'important');
+    btn.style.setProperty('line-height', '1', 'important');
+    btn.style.setProperty('white-space', 'nowrap', 'important');
+    btn.style.setProperty('display', 'inline-flex', 'important');
+    btn.style.setProperty('align-items', 'center', 'important');
+    btn.style.setProperty('justify-content', 'center', 'important');
+    btn.style.setProperty('gap', '6px', 'important');
+    if (btn.parentNode !== row) {
+      row.appendChild(btn);
+    }
+  });
+}
+
+window.addEventListener('DOMContentLoaded', () => {
+  setTimeout(fixAdminMobileRow, 150);
+});
 
 function logout() {
   Swal.fire({
