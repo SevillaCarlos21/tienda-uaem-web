@@ -1659,3 +1659,46 @@ body.is-admin-user #btnNavMyProducts {
     padding: 7px 8px !important;
   }
 }
+
+/* ==========================================
+   BOTÓN DE ACCESIBILIDAD COMPACTO EN MÓVIL
+   ========================================== */
+@media (max-width: 768px) {
+  #accessibilityToggle,
+  #accessibilityBtn,
+  #btnAccessibility,
+  .accessibility-toggle,
+  .accessibility-btn,
+  .a11y-toggle,
+  .a11y-btn,
+  .floating-accessibility-btn,
+  [id*="accessibility"] > button,
+  [class*="accessibility"] > button {
+    width: 46px !important;
+    height: 46px !important;
+    min-width: 46px !important;
+    min-height: 46px !important;
+    font-size: 1.1rem !important;
+    right: 12px !important;
+    bottom: 12px !important;
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.25) !important;
+  }
+
+  /* Si el botón está dentro de un contenedor fijo */
+  #accessibilityWidget,
+  #accessibilityWrapper,
+  .accessibility-widget,
+  .accessibility-wrapper,
+  .floating-accessibility {
+    right: 12px !important;
+    bottom: 12px !important;
+    transform: scale(0.82);
+    transform-origin: bottom right;
+  }
+
+  /* Evitar que los modales queden pegados al borde inferior derecho */
+  .swal2-popup,
+  .modal-content {
+    margin-bottom: 56px !important;
+  }
+}
