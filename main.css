@@ -1728,6 +1728,9 @@ body.is-admin-user #btnNavMyProducts {
 /* ==========================================
    FIJAR FILA 1 (MARCA + ADMIN) Y FILA 2 (CATÁLOGO + PANEL ADMIN) EN MÓVIL
    ========================================== */
+/* ==========================================
+   HEADER MÓVIL IDÉNTICO EN INDEX Y ADMIN
+   ========================================== */
 @media (max-width: 768px) {
   header .navbar {
     display: flex !important;
@@ -1739,7 +1742,7 @@ body.is-admin-user #btnNavMyProducts {
     padding: 10px 12px !important;
   }
 
-  /* Fila 1 izquierda: UAEM Store */
+  /* Fila 1 izquierda: Logo y nombre UAEM Store */
   header .navbar > .brand {
     order: 1 !important;
     flex: 0 1 auto !important;
@@ -1759,17 +1762,17 @@ body.is-admin-user #btnNavMyProducts {
     white-space: nowrap !important;
   }
 
-  /* Desempaqueta nav-actions para que usuario y botones respondan al mismo flex-wrap */
+  /* Desempaqueta nav-actions para alinear píldora y botones en el mismo contenedor flex */
   header .navbar > .nav-actions {
     display: contents !important;
   }
 
-  /* Fila 1 derecha: píldora Administrador */
+  /* Fila 1 derecha: Píldora del usuario / administrador */
   header .navbar .user-menu-wrapper {
     order: 2 !important;
     flex: 0 1 auto !important;
     width: auto !important;
-    max-width: 52% !important;
+    max-width: 54% !important;
     margin-left: auto !important;
   }
 
@@ -1791,7 +1794,7 @@ body.is-admin-user #btnNavMyProducts {
 
   header .navbar .user-pill-btn .user-name {
     font-size: 0.78rem !important;
-    max-width: 105px !important;
+    max-width: 110px !important;
     white-space: nowrap !important;
     overflow: hidden !important;
     text-overflow: ellipsis !important;
@@ -1801,7 +1804,7 @@ body.is-admin-user #btnNavMyProducts {
     display: none !important;
   }
 
-  /* Fila 2: ambos botones (Catálogo y Panel Admin) en la misma fila, 50% cada uno */
+  /* Fila 2: Botones simétricos en una sola fila (50% / 50%) */
   header .navbar .nav-actions > a.nav-btn,
   header .navbar .nav-actions > button.nav-btn,
   header .navbar .nav-actions > #btnNavAdmin,
@@ -1812,14 +1815,17 @@ body.is-admin-user #btnNavMyProducts {
     width: calc(50% - 4px) !important;
     max-width: calc(50% - 4px) !important;
     min-width: 0 !important;
-    height: 38px !important;
-    min-height: 38px !important;
-    padding: 6px 8px !important;
-    font-size: 0.8rem !important;
-    line-height: 1.15 !important;
+    height: 40px !important;
+    min-height: 40px !important;
+    max-height: 40px !important;
+    padding: 0 10px !important;
+    font-size: 0.82rem !important;
+    line-height: 1 !important;
     display: inline-flex !important;
+    flex-direction: row !important;
     align-items: center !important;
     justify-content: center !important;
+    gap: 6px !important;
     white-space: nowrap !important;
     margin: 0 !important;
     box-sizing: border-box !important;
