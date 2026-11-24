@@ -654,3 +654,878 @@ body.high-contrast-dark .notif-msg {
     font-size: 0.7rem;
     padding: 2px 5px;
 }
+
+/* ==========================================
+   SMART HEADER CON FIXED (MÁS CONFIABLE)
+   ========================================== */
+header {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  width: 100% !important;
+  z-index: 1000 !important;
+  transition: transform 0.25s ease-in-out !important;
+}
+
+header.header-hidden {
+  transform: translateY(-100%) !important;
+}
+
+/* Compensa la altura del header fijo para que no tape el contenido */
+body:not(.auth-body) main {
+  padding-top: 120px !important;
+}
+
+@media (max-width: 768px) {
+  body:not(.auth-body) main {
+    padding-top: 175px !important;
+  }
+}
+
+/* ==========================================
+   MENÚ DESPLEGABLE DE USUARIO Y EFECTO NOTIFICACIÓN
+   ========================================== */
+.user-menu-wrapper {
+  position: relative;
+  display: inline-block;
+}
+
+.user-pill-btn {
+  cursor: pointer;
+  color: #ffffff;
+  transition: all 0.25s ease;
+}
+
+.user-pill-btn:hover {
+  background: rgba(255, 255, 255, 0.16);
+  border-color: var(--uaem-gold);
+}
+
+.user-chevron {
+  font-size: 0.72rem;
+  opacity: 0.85;
+  margin-left: 4px;
+  transition: transform 0.25s ease;
+}
+
+.user-menu-wrapper.open .user-chevron {
+  transform: rotate(180deg);
+}
+
+.avatar-wrap {
+  position: relative;
+  display: inline-flex;
+}
+
+/* Punto indicador en el avatar cuando hay notificaciones */
+.user-notif-dot {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  width: 11px;
+  height: 11px;
+  background-color: #ef4444;
+  border: 2px solid var(--uaem-blue-dark);
+  border-radius: 50%;
+  animation: pulseDot 1.6s infinite;
+}
+
+/* Efecto en todo el recuadro del nombre cuando tiene notificaciones */
+.user-pill-btn.has-notifications {
+  border-color: var(--uaem-gold) !important;
+  box-shadow: 0 0 12px rgba(212, 175, 55, 0.55);
+  animation: glowUserPill 2.2s infinite ease-in-out;
+}
+
+@keyframes pulseDot {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.28); opacity: 0.8; }
+}
+
+@keyframes glowUserPill {
+  0%, 100% { box-shadow: 0 0 8px rgba(212, 175, 55, 0.35); }
+  50% { box-shadow: 0 0 16px rgba(212, 175, 55, 0.85); }
+}
+
+/* Menú desplegable del usuario */
+.user-dropdown {
+  display: none;
+  position: absolute;
+  right: 0;
+  top: calc(100% + 10px);
+  min-width: 230px;
+  background: var(--card-bg, #ffffff);
+  border: 2px solid var(--uaem-gold);
+  border-radius: 12px;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.35);
+  padding: 6px;
+  z-index: 1200;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.user-menu-wrapper.open .user-dropdown {
+  display: flex;
+}
+
+.user-dropdown-item {
+  width: 100%;
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 0.86rem;
+  font-weight: 700;
+  color: var(--uaem-blue-main);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.user-dropdown-item:hover {
+  background: #f1f5f9;
+}
+
+.user-dropdown-item.logout-item {
+  color: #dc2626;
+}
+
+.user-dropdown-item.logout-item:hover {
+  background: #fee2e2;
+}
+
+.user-dropdown-divider {
+  height: 1px;
+  background: #e2e8f0;
+  margin: 2px 6px;
+}
+
+/* Asegura que el panel de notificaciones dentro del menú se vea bien posicionado */
+.user-dropdown .notification-dropdown {
+  right: 0;
+  top: calc(100% + 6px);
+}
+
+/* Soporte Alto Contraste Oscuro */
+body.high-contrast-dark .user-dropdown {
+  background: #0d0d0d !important;
+  border-color: #ffd700 !important;
+}
+
+body.high-contrast-dark .user-dropdown-item {
+  color: #ffff00 !important;
+}
+
+body.high-contrast-dark .user-dropdown-item:hover {
+  background: #1a1a1a !important;
+}
+
+body.high-contrast-dark .user-dropdown-item.logout-item {
+  color: #f87171 !important;
+}
+
+@media (max-width: 768px) {
+  .user-menu-wrapper {
+    grid-column: span 3;
+    width: 100%;
+  }
+  .user-pill-btn {
+    width: 100%;
+    justify-content: space-between;
+  }
+}
+
+/* ==========================================
+   ALINEACIÓN LIMPIA PARA MODO ADMINISTRADOR
+   ========================================== */
+/* ==========================================
+   SOLUCIÓN DEFINITIVA EN UNA SOLA FILA
+   ========================================== */
+header .navbar {
+  display: flex !important;
+  flex-direction: row !important;
+  flex-wrap: nowrap !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 12px !important;
+}
+
+header .brand {
+  flex-shrink: 0 !important;
+}
+
+header .nav-actions {
+  display: flex !important;
+  flex-direction: row !important;
+  flex-wrap: nowrap !important;
+  align-items: center !important;
+  justify-content: flex-end !important;
+  gap: 8px !important;
+  flex: 1 1 auto !important;
+  min-width: 0 !important;
+}
+
+header .nav-actions > .nav-btn,
+header .nav-actions > a.nav-btn {
+  display: inline-flex !important;
+  align-items: center !important;
+  width: auto !important;
+  height: 38px !important;
+  padding: 0 12px !important;
+  flex-shrink: 0 !important;
+  white-space: nowrap !important;
+}
+
+header .user-menu-wrapper {
+  display: inline-flex !important;
+  align-items: center !important;
+  flex-shrink: 0 !important;
+  width: auto !important;
+  height: auto !important;
+}
+
+header .user-pill-btn {
+  display: inline-flex !important;
+  align-items: center !important;
+  padding: 4px 10px !important;
+  height: 44px !important;
+  max-width: 240px !important;
+}
+
+header .user-info {
+  min-width: 0 !important;
+}
+
+header .user-name,
+header .user-role {
+  display: block !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  max-width: 155px !important;
+}
+
+
+/* ==========================================
+   OCULTAR BOTONES DE CLIENTE PARA ADMINISTRADOR
+   ========================================== */
+body.is-admin-user header .nav-actions a[href="mis-compras.html"],
+body.is-admin-user header .nav-actions a[href="mis-productos.html"],
+body.is-admin-user header .nav-actions a[href="carrito.html"],
+body.is-admin-user header .nav-actions button[onclick*="openAddModal"] {
+  display: none !important;
+}
+
+
+/* ==========================================
+   CAJONCITO MÓVIL PARA SUBIR FOTO EN MODAL
+   ========================================== */
+.file-upload-box {
+  border: 2px dashed #94a3b8;
+  background: #f8fafc;
+  border-radius: 10px;
+  padding: 12px;
+  margin: 6px 0 12px 0;
+  transition: all 0.2s ease;
+}
+
+.file-upload-box:hover,
+.file-upload-box:focus-within {
+  border-color: var(--uaem-blue-main, #002b49);
+  background: #f1f5f9;
+}
+
+.file-upload-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  background: var(--uaem-blue-main, #002b49);
+  color: #ffffff;
+  font-weight: 700;
+  font-size: 0.86rem;
+  cursor: pointer;
+  transition: transform 0.15s ease, background 0.2s ease;
+}
+
+.file-upload-trigger:hover {
+  background: var(--uaem-blue-dark, #001a2c);
+}
+
+.file-upload-trigger:active {
+  transform: scale(0.98);
+}
+
+.file-upload-name {
+  margin-top: 8px;
+  font-size: 0.78rem;
+  color: #475569;
+  word-break: break-all;
+  text-align: center;
+}
+
+body.high-contrast-dark .file-upload-box {
+  background: #141414 !important;
+  border-color: #ffd700 !important;
+}
+
+body.high-contrast-dark .file-upload-trigger {
+  background: #ffd700 !important;
+  color: #000000 !important;
+}
+
+body.high-contrast-dark .file-upload-name {
+  color: #ffff00 !important;
+}
+
+/* ==========================================
+   TARJETA LIGERA EN CATÁLOGO (ESCANEO RÁPIDO)
+   ========================================== */
+.product-card .category-badge,
+.product-card .product-badge,
+.product-card .product-meta,
+.product-card .seller-info {
+  display: none !important;
+}
+
+.product-card img,
+.product-card .product-title {
+  cursor: pointer;
+}
+
+
+/* ==========================================
+   FICHA DE PRODUCTO EN MODAL + ACCESIBILIDAD
+   ========================================== */
+.uaem-detail-popup {
+  border-radius: 14px !important;
+  padding: 20px !important;
+  max-width: 520px !important;
+}
+
+.uaem-detail-popup .swal2-title {
+  color: var(--uaem-blue-main, #002b49);
+  font-weight: 800;
+  font-size: 1.35rem;
+  line-height: 1.25;
+  margin-bottom: 10px;
+}
+
+.uaem-detail-modal {
+  text-align: left;
+  font-size: 0.92rem;
+  line-height: var(--line-spacing, 1.5);
+  word-spacing: var(--word-spacing, 0px);
+  letter-spacing: var(--letter-spacing, 0px);
+}
+
+.uaem-detail-img-wrap {
+  width: 100%;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 8px;
+  margin-bottom: 14px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.uaem-detail-img {
+  width: 100%;
+  max-height: 230px;
+  object-fit: contain;
+  border-radius: 8px;
+}
+
+.uaem-detail-summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  background: #f1f5f9;
+  border-radius: 10px;
+  padding: 10px 14px;
+  margin-bottom: 12px;
+}
+
+.uaem-detail-price {
+  font-size: 1.2rem;
+  font-weight: 800;
+  color: var(--uaem-blue-main, #002b49);
+}
+
+.uaem-detail-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.uaem-detail-pill {
+  font-size: 0.78rem;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: #e2e8f0;
+  color: #1e293b;
+}
+
+.uaem-detail-meta-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 12px 14px;
+}
+
+.uaem-detail-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.uaem-detail-row i {
+  margin-top: 3px;
+  width: 16px;
+  text-align: center;
+  color: var(--uaem-blue-main, #002b49);
+  flex-shrink: 0;
+}
+
+.uaem-detail-row .safe-icon {
+  color: #059669;
+}
+
+/* --- Contraste Alto Oscuro --- */
+body.high-contrast-dark .uaem-detail-popup {
+  background: #000000 !important;
+  color: #ffff00 !important;
+  border: 2px solid #ffd700 !important;
+}
+
+body.high-contrast-dark .uaem-detail-popup .swal2-title,
+body.high-contrast-dark .uaem-detail-price {
+  color: #ffd700 !important;
+}
+
+body.high-contrast-dark .uaem-detail-img-wrap,
+body.high-contrast-dark .uaem-detail-summary,
+body.high-contrast-dark .uaem-detail-meta-list {
+  background: #121212 !important;
+  border-color: #ffd700 !important;
+  color: #ffff00 !important;
+}
+
+body.high-contrast-dark .uaem-detail-pill {
+  background: #262626 !important;
+  color: #ffff00 !important;
+  border: 1px solid #ffd700;
+}
+
+body.high-contrast-dark .uaem-detail-row i,
+body.high-contrast-dark .uaem-detail-row .safe-icon {
+  color: #ffd700 !important;
+}
+
+/* --- Contraste Alto Claro --- */
+body.high-contrast-light .uaem-detail-popup {
+  background: #ffffff !important;
+  color: #000000 !important;
+  border: 2px solid #000000 !important;
+}
+
+body.high-contrast-light .uaem-detail-popup .swal2-title,
+body.high-contrast-light .uaem-detail-price {
+  color: #000000 !important;
+}
+
+body.high-contrast-light .uaem-detail-img-wrap,
+body.high-contrast-light .uaem-detail-summary,
+body.high-contrast-light .uaem-detail-meta-list {
+  background: #ffffff !important;
+  border-color: #000000 !important;
+  color: #000000 !important;
+}
+
+body.high-contrast-light .uaem-detail-pill {
+  background: #f1f5f9 !important;
+  color: #000000 !important;
+  border: 1px solid #000000;
+}
+
+body.high-contrast-light .uaem-detail-row i,
+body.high-contrast-light .uaem-detail-row .safe-icon {
+  color: #000000 !important;
+}
+
+/* --- Fuente Legible --- */
+body.accessible-dyslexic .uaem-detail-popup,
+body.accessible-dyslexic .uaem-detail-modal {
+  font-family: inherit;
+}
+
+
+/* ==========================================
+   MODAL MÉTODO DE PAGO + ACCESIBILIDAD
+   ========================================== */
+.uaem-pay-popup {
+  border-radius: 14px !important;
+  padding: 20px !important;
+  max-width: 480px !important;
+}
+
+.uaem-pay-popup .swal2-title {
+  color: var(--uaem-blue-main, #002b49);
+  font-weight: 800;
+  font-size: 1.3rem;
+  margin-bottom: 8px;
+}
+
+.uaem-pay-modal {
+  text-align: left;
+  margin-top: 8px;
+  line-height: var(--line-spacing, 1.5);
+  word-spacing: var(--word-spacing, 0px);
+  letter-spacing: var(--letter-spacing, 0px);
+}
+
+.uaem-pay-subtitle {
+  font-size: 0.9rem;
+  color: #475569;
+  margin-bottom: 14px;
+}
+
+.uaem-pay-options {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.uaem-pay-option {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 2px solid #cbd5e1;
+  border-radius: 10px;
+  background: #f8fafc;
+  cursor: pointer;
+  transition: border-color 0.2s ease, background 0.2s ease;
+  min-height: 48px;
+}
+
+.uaem-pay-option:hover {
+  border-color: var(--uaem-blue-main, #002b49);
+  background: #f1f5f9;
+}
+
+.uaem-pay-option input[type="radio"] {
+  accent-color: var(--uaem-blue-main, #002b49);
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  cursor: pointer;
+}
+
+.uaem-pay-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.uaem-pay-desc {
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: #64748b;
+}
+
+/* --- Contraste Alto Oscuro --- */
+body.high-contrast-dark .uaem-pay-popup {
+  background: #000000 !important;
+  color: #ffff00 !important;
+  border: 2px solid #ffd700 !important;
+}
+
+body.high-contrast-dark .uaem-pay-popup .swal2-title {
+  color: #ffd700 !important;
+}
+
+body.high-contrast-dark .uaem-pay-subtitle,
+body.high-contrast-dark .uaem-pay-text,
+body.high-contrast-dark .uaem-pay-desc {
+  color: #ffff00 !important;
+}
+
+body.high-contrast-dark .uaem-pay-option {
+  background: #121212 !important;
+  border-color: #ffd700 !important;
+}
+
+body.high-contrast-dark .uaem-pay-option input[type="radio"] {
+  accent-color: #ffd700;
+}
+
+/* --- Contraste Alto Claro --- */
+body.high-contrast-light .uaem-pay-popup {
+  background: #ffffff !important;
+  color: #000000 !important;
+  border: 2px solid #000000 !important;
+}
+
+body.high-contrast-light .uaem-pay-popup .swal2-title {
+  color: #000000 !important;
+}
+
+body.high-contrast-light .uaem-pay-subtitle,
+body.high-contrast-light .uaem-pay-text,
+body.high-contrast-light .uaem-pay-desc {
+  color: #000000 !important;
+}
+
+body.high-contrast-light .uaem-pay-option {
+  background: #ffffff !important;
+  border-color: #000000 !important;
+}
+
+body.high-contrast-light .uaem-pay-option input[type="radio"] {
+  accent-color: #000000;
+}
+
+
+/* ==========================================
+   BOTÓN "+ VENDER" DISTINTIVO + ACCESIBILIDAD
+   ========================================== */
+button[onclick*="openAddModal"].btn,
+button[onclick*="openAddModal"].nav-btn {
+  background: #059669 !important;
+  color: #ffffff !important;
+  border: 2px solid #047857 !important;
+  font-weight: 700 !important;
+  min-height: 40px;
+}
+
+button[onclick*="openAddModal"].btn:hover,
+button[onclick*="openAddModal"].nav-btn:hover {
+  background: #047857 !important;
+  color: #ffffff !important;
+}
+
+body.high-contrast-dark button[onclick*="openAddModal"].btn,
+body.high-contrast-dark button[onclick*="openAddModal"].nav-btn {
+  background: #ffd700 !important;
+  color: #000000 !important;
+  border: 2px solid #ffff00 !important;
+  font-weight: 800 !important;
+}
+
+body.high-contrast-light button[onclick*="openAddModal"].btn,
+body.high-contrast-light button[onclick*="openAddModal"].nav-btn {
+  background: #000000 !important;
+  color: #ffffff !important;
+  border: 2px solid #000000 !important;
+}
+
+/* ==========================================
+   MODAL EDITAR / REABASTECER + ACCESIBILIDAD
+   ========================================== */
+.uaem-edit-popup {
+  border-radius: 14px !important;
+  padding: 20px !important;
+  max-width: 520px !important;
+}
+
+.uaem-edit-modal {
+  text-align: left;
+  line-height: var(--line-spacing, 1.5);
+  word-spacing: var(--word-spacing, 0px);
+  letter-spacing: var(--letter-spacing, 0px);
+}
+
+.uaem-edit-label {
+  display: block;
+  font-weight: 700;
+  font-size: 0.85rem;
+  color: #002b49;
+  margin-top: 8px;
+}
+
+.uaem-edit-alert {
+  font-size: 0.82rem;
+  color: #991b1b;
+  background: #fee2e2;
+  padding: 8px 10px;
+  border-radius: 6px;
+  margin-bottom: 12px;
+}
+
+/* Contraste Alto Oscuro en modal Editar */
+body.high-contrast-dark .uaem-edit-popup {
+  background: #000000 !important;
+  color: #ffff00 !important;
+  border: 2px solid #ffd700 !important;
+}
+
+body.high-contrast-dark .uaem-edit-popup .swal2-title,
+body.high-contrast-dark .uaem-edit-label {
+  color: #ffd700 !important;
+}
+
+body.high-contrast-dark .uaem-edit-modal .swal2-input,
+body.high-contrast-dark .uaem-edit-modal .swal2-select,
+body.high-contrast-dark .uaem-edit-modal .swal2-textarea {
+  background: #141414 !important;
+  color: #ffff00 !important;
+  border: 2px solid #ffd700 !important;
+}
+
+body.high-contrast-dark .uaem-edit-alert {
+  background: #260808 !important;
+  color: #ffff00 !important;
+  border: 1px solid #ffd700;
+}
+
+/* Contraste Alto Claro en modal Editar */
+body.high-contrast-light .uaem-edit-popup {
+  background: #ffffff !important;
+  color: #000000 !important;
+  border: 2px solid #000000 !important;
+}
+
+body.high-contrast-light .uaem-edit-popup .swal2-title,
+body.high-contrast-light .uaem-edit-label {
+  color: #000000 !important;
+}
+
+body.high-contrast-light .uaem-edit-modal .swal2-input,
+body.high-contrast-light .uaem-edit-modal .swal2-select,
+body.high-contrast-light .uaem-edit-modal .swal2-textarea {
+  background: #ffffff !important;
+  color: #000000 !important;
+  border: 2px solid #000000 !important;
+}
+
+body.high-contrast-light .uaem-edit-alert {
+  background: #f1f5f9 !important;
+  color: #000000 !important;
+  border: 1px solid #000000;
+}
+
+/* ==========================================
+   MODAL VENDER / PUBLICAR + ACCESIBILIDAD
+   ========================================== */
+#productModal .modal-content,
+#productModal .modal-body,
+#productModal form {
+  line-height: var(--line-spacing, 1.5);
+  word-spacing: var(--word-spacing, 0px);
+  letter-spacing: var(--letter-spacing, 0px);
+}
+
+body.high-contrast-dark #productModal .modal-content {
+  background: #000000 !important;
+  color: #ffff00 !important;
+  border: 2px solid #ffd700 !important;
+}
+
+body.high-contrast-dark #productModal label,
+body.high-contrast-dark #productModal .modal-title,
+body.high-contrast-dark #productModal h3,
+body.high-contrast-dark #productModal h4 {
+  color: #ffd700 !important;
+}
+
+body.high-contrast-dark #productModal input,
+body.high-contrast-dark #productModal select,
+body.high-contrast-dark #productModal textarea,
+body.high-contrast-dark #productModal .form-control {
+  background: #141414 !important;
+  color: #ffff00 !important;
+  border: 2px solid #ffd700 !important;
+}
+
+body.high-contrast-dark #productModal [style*="background"],
+body.high-contrast-dark #productModal .seller-info,
+body.high-contrast-dark #productModal .vendor-box {
+  background: #141414 !important;
+  color: #ffff00 !important;
+  border: 1px solid #ffd700 !important;
+}
+
+body.high-contrast-light #productModal .modal-content {
+  background: #ffffff !important;
+  color: #000000 !important;
+  border: 2px solid #000000 !important;
+}
+
+body.high-contrast-light #productModal label,
+body.high-contrast-light #productModal .modal-title,
+body.high-contrast-light #productModal h3,
+body.high-contrast-light #productModal h4 {
+  color: #000000 !important;
+}
+
+body.high-contrast-light #productModal input,
+body.high-contrast-light #productModal select,
+body.high-contrast-light #productModal textarea,
+body.high-contrast-light #productModal .form-control {
+  background: #ffffff !important;
+  color: #000000 !important;
+  border: 2px solid #000000 !important;
+}
+
+
+/* ==========================================
+   PANEL ADMIN + ACCESIBILIDAD
+   ========================================== */
+body main h2,
+body .admin-kpi-grid,
+body .table-container {
+  line-height: var(--line-spacing, 1.5);
+  word-spacing: var(--word-spacing, 0px);
+  letter-spacing: var(--letter-spacing, 0px);
+}
+
+/* Contraste Alto Oscuro en Panel Admin */
+body.high-contrast-dark .kpi-card,
+body.high-contrast-dark .table-container {
+  background: #000000 !important;
+  color: #ffff00 !important;
+  border: 2px solid #ffd700 !important;
+}
+
+body.high-contrast-dark .kpi-title,
+body.high-contrast-dark .kpi-card h3,
+body.high-contrast-dark .kpi-card i,
+body.high-contrast-dark .table-header h2,
+body.high-contrast-dark main > h2 {
+  color: #ffd700 !important;
+}
+
+/* Contraste Alto Claro en Panel Admin */
+body.high-contrast-light .kpi-card,
+body.high-contrast-light .table-container {
+  background: #ffffff !important;
+  color: #000000 !important;
+  border: 2px solid #000000 !important;
+}
+
+body.high-contrast-light .kpi-title,
+body.high-contrast-light .kpi-card h3,
+body.high-contrast-light .kpi-card i,
+body.high-contrast-light .table-header h2,
+body.high-contrast-light main > h2 {
+  color: #000000 !important;
+}

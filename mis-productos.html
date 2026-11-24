@@ -21,7 +21,7 @@
     <div class="navbar">
       <a href="index.html" class="brand">
         <img src="https://upload.wikimedia.org/wikipedia/commons/2/25/Logo_uaem_morelos.png" alt="Escudo UAEM">
-        <div><div class="brand-title">UAEM <span>Store Web</span></div></div>
+        <div class="brand-title">UAEM <span>Store</span></div>
       </a>
       <div class="nav-actions">
         <a href="index.html" class="nav-btn"><i class="fa-solid fa-store"></i> Catálogo</a>
@@ -30,14 +30,53 @@
       
         <a href="carrito.html" class="nav-btn"><i class="fa-solid fa-cart-shopping"></i> Carrito <span class="badge" id="cartBadge">0</span></a>
         
-        <div class="user-pill">
-          <div class="avatar" id="userAvatar">CS</div>
-          <div class="user-info"><span class="user-name" id="userNameDisplay">Usuario</span><span class="user-role" id="userRoleDisplay">Alumno</span></div>
-        </div>
+        <!-- ========================================== -->
+        <!-- MENÚ DESPLEGABLE DE PERFIL DE USUARIO      -->
+        <!-- ========================================== -->
+        <div class="user-menu-wrapper" id="userMenuWrapper">
+          <button type="button" class="user-pill user-pill-btn" id="userPillBtn" onclick="toggleUserMenu(event)" aria-expanded="false">
+            <div class="avatar-wrap">
+              <div class="avatar" id="userAvatar">CS</div>
+              <span class="user-notif-dot" id="userNotifDot" style="display:none;"></span>
+            </div>
+            <div class="user-info" style="text-align:left;">
+              <span class="user-name" id="userNameDisplay">Usuario</span>
+              <span class="user-role" id="userRoleDisplay">Alumno</span>
+            </div>
+            <i class="fa-solid fa-chevron-down user-chevron"></i>
+          </button>
 
-        <button class="btn-logout-navbar" onclick="logout()" title="Cerrar Sesión">
-          <i class="fa-solid fa-right-from-bracket"></i> <span>Salir</span>
-        </button>
+          <div class="user-dropdown" id="userDropdown">
+            <!-- 🔔 BOTÓN DE NOTIFICACIONES Y DROPDOWN -->
+            <div class="notification-wrapper" id="navNotificaciones" style="position: relative; width: 100%;">
+              <button type="button" class="user-dropdown-item" onclick="toggleNotificationDropdown()" title="Notificaciones del Sistema">
+                <span style="display:flex; align-items:center; gap:8px;">
+                  <i class="fa-solid fa-bell" style="color:var(--uaem-gold);"></i> Notificaciones UAEM
+                </span>
+                <span class="badge" id="notifBadge" style="display: none;">0</span>
+              </button>
+              
+              <div class="notification-dropdown" id="notifDropdown">
+                <div class="notif-header">
+                  <span><i class="fa-solid fa-bell"></i> Notificaciones UAEM</span>
+                  <span style="font-size: 0.75rem; cursor: pointer; color: var(--uaem-gold);" onclick="clearNotifications()">Limpiar</span>
+                </div>
+                <div class="notif-body" id="notifListContainer">
+                  <!-- Las alertas se inyectarán aquí dinámicamente -->
+                </div>
+              </div>
+            </div>
+
+            <div class="user-dropdown-divider" id="userMenuDivider"></div>
+
+            <button type="button" class="user-dropdown-item logout-item" onclick="logout()" title="Cerrar Sesión">
+              <span style="display:flex; align-items:center; gap:8px;">
+                <i class="fa-solid fa-right-from-bracket"></i> Cerrar Sesión
+              </span>
+            </button>
+          </div>
+        </div>
+        <!-- ========================================== -->
       </div>
     </div>
     <div class="user-bar">
@@ -51,7 +90,9 @@
     <div class="table-container">
       <div class="table-header">
         <h2><i class="fa-solid fa-boxes-packing"></i> Mis Artículos Publicados en Inventario</h2>
-
+        <button type="button" class="btn btn-primary" onclick="openAddModal()">
+          <i class="fa-solid fa-plus-circle"></i> Vender
+        </button>
       </div>
       <div style="overflow-x: auto;">
         <table>
@@ -92,6 +133,55 @@
       </div>
     </div>
   </main>
+
+  <!-- MODAL DE PUBLICAR ARTÍCULO -->
+  <div class="modal-overlay" id="productModal">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3><i class="fa-solid fa-plus-circle"></i> Publicar Artículo en UAEM Store</h3>
+        <span class="close-modal" onclick="closeProductModal()">&times;</span>
+      </div>
+      <form id="productForm" onsubmit="saveProductSubmit(event)">
+        <div class="form-group"><label for="pName">Nombre del Producto</label><input type="text" id="pName" class="form-control" placeholder="Ej. Calculadora Casio" required></div>
+        <div class="form-group">
+          <label for="pCategory">Categoría</label>
+          <select id="pCategory" class="form-control" required>
+            <option value="libros">Libros & Apuntes</option>
+            <option value="papeleria">Papelería y Arquitectura</option>
+            <option value="electronica">Electrónica & Gadgets</option>
+            <option value="ropa">Ropa e Identidad UAEM</option>
+            <option value="otros">Snacks, Salud & General</option>
+          </select>
+        </div>
+        <div style="display: flex; gap: 15px;">
+          <div class="form-group" style="flex: 1;"><label for="pPrice">Precio ($ MXN)</label><input type="number" id="pPrice" class="form-control" min="1" step="0.5" required></div>
+          <div class="form-group" style="flex: 1;"><label for="pStock">Unidades (Stock)</label><input type="number" id="pStock" class="form-control" min="1" required></div>
+        </div>
+        <div class="form-group">
+          <label for="pSchedule"><i class="fa-solid fa-clock"></i> Horario de Entrega</label>
+          <select id="pSchedule" class="form-control" required>
+            <option value="Turno Matutino (7:00 AM - 1:00 PM)">Turno Matutino (7:00 AM - 1:00 PM)</option>
+            <option value="Turno Vespertino (1:00 PM - 7:00 PM)">Turno Vespertino (1:00 PM - 7:00 PM)</option>
+            <option value="Horario de Profesor (Previa Cita Cubículo)">Horario de Profesor / Cubículo</option>
+            <option value="Entrega Inmediata entre Clases">Entrega Inmediata entre Clases</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="pDeliveryPoint"><i class="fa-solid fa-shield-cat" style="color: #059669;"></i> Punto de Entrega Seguro (Cámara & Botón de Pánico)</label>
+          <select id="pDeliveryPoint" class="form-control" required></select>
+        </div>
+
+        <div class="form-group"><label for="pImage">URL de Imagen (Opcional)</label><input type="url" id="pImage" class="form-control"></div>
+        <div class="form-group">
+        <label for="pImageFile"><i class="fa-solid fa-upload"></i> O subir foto desde tu dispositivo (Opcional)</label>
+        <input type="file" id="pImageFile" class="form-control" accept="image/*">
+        </div>
+        <div style="background: #f1f5f9; padding: 12px; border-radius: 6px; margin-bottom: 18px; font-size: 0.82rem;"><i class="fa-solid fa-user-check"></i> <strong>Vendedor:</strong> <span id="detectedSeller"></span></div>
+        <button type="submit" class="btn btn-primary" style="width: 100%;"><i class="fa-solid fa-cloud-arrow-up"></i> Publicar en Catálogo</button>
+      </form>
+    </div>
+  </div>
 
   <footer>
     <p><strong>UAEM Store Web &copy; 2026</strong> - Portal Oficial de Comercio Universitario Incluyente</p>

@@ -188,8 +188,9 @@ function initRealtimeListeners() {
 // 4. AUTENTICACIÓN Y REGISTRO (CON SOPORTE ADMIN)
 // ==========================================
 function validateUAEMEmail(email) {
-  const domain = email.toLowerCase();
-  return domain.endsWith('@uaem.mx') || domain.endsWith('@uaem.edu.mx');
+  const domain = email.toLowerCase().trim();
+  const allowedDomains = ['@uaem.mx', '@uaem.edu.mx', '@fcaei.uaem.edu.mx'];
+  return allowedDomains.some(d => domain.endsWith(d));
 }
 
 async function registerUserSubmit(e) {
@@ -205,7 +206,7 @@ async function registerUserSubmit(e) {
     return Swal.fire({
       icon: 'error',
       title: 'Correo Institucional Requerido',
-      text: 'Debes utilizar una cuenta institucional de la UAEM con extensión @uaem.mx o @uaem.edu.mx',
+      text: 'Debes utilizar una cuenta institucional válida (@uaem.mx, @uaem.edu.mx o @fcaei.uaem.edu.mx)',
       confirmButtonColor: '#002b49'
     });
   }
@@ -444,7 +445,7 @@ function updateUserUI() {
 
     if (navActions && !alreadyHasAdminBtn) {
       const adminBtnHTML = `
-        <a href="admin.html" class="nav-btn" id="btnNavAdmin" style="background:var(--uaem-gold); color:var(--uaem-blue-dark); font-weight:700;">
+        <a href="admin.html" class="nav-btn" id="btnNavAdmin" style="background:var(--uaem-gold); color:var(--uaem-blue-dark); font-weight:700; display:inline-flex; align-items:center;">
           <i class="fa-solid fa-chart-line"></i> Panel Admin
         </a>`;
       
@@ -580,7 +581,7 @@ function renderProducts() {
     const isSoldOut = p.stock <= 0;
     const isUnavailable = p.suspendido || isSoldOut;
     const pointText = p.deliveryPoint || `Botón de Pánico - ${p.faculty}`;
-    const speechText = `${p.name}, precio ${p.price} pesos. Vendedor: ${p.seller}. Punto de entrega: ${pointText}`;
+    const speechText = `${p.name}, precio ${p.price} pesos. ${isSoldOut ? 'Agotado' : p.stock + ' disponibles'}.`;
 
     const adminMenuHTML = isAdmin ? `
       <div class="admin-dropdown" onclick="event.stopPropagation();">
@@ -599,9 +600,8 @@ function renderProducts() {
     return `
       <div class="card ${isUnavailable ? 'out-of-stock' : ''}" style="position: relative; overflow: visible;" onmouseenter="speakText('${speechText.replace(/'/g, "\\'")}')" tabindex="0" role="article" aria-label="${speechText}">
         ${adminMenuHTML}
-        <div class="card-img-wrap" style="border-radius: var(--radius) var(--radius) 0 0; overflow: hidden;">
+        <div class="card-img-wrap" style="border-radius: var(--radius) var(--radius) 0 0; overflow: hidden; cursor: pointer;" onclick="openProductDetailModal(${p.id})" title="Ver detalles del producto">
           <img class="card-img" src="${p.image}" alt="${p.name}" onerror="this.src='https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?auto=format&fit=crop&w=600&q=80'">
-          <span class="category-tag">${p.category}</span>
           ${p.suspendido 
             ? `<span class="soldout-tag" style="background:#b91c1c;"><i class="fa-solid fa-lock"></i> SUSPENDIDO</span>` 
             : (isSoldOut ? `<span class="soldout-tag"><i class="fa-solid fa-ban"></i> AGOTADO</span>` : '')
@@ -609,14 +609,8 @@ function renderProducts() {
         </div>
         <div class="card-body">
           <div>
-            <div class="card-title">${p.name}</div>
+            <div class="card-title" style="cursor: pointer;" onclick="openProductDetailModal(${p.id})" title="Ver detalles del producto">${p.name}</div>
             <div class="card-price">$${p.price.toFixed(2)} MXN</div>
-            <div class="seller-box">
-              <div class="seller-name"><i class="fa-solid fa-user-tie"></i> ${p.seller}</div>
-              <div class="seller-faculty"><i class="fa-solid fa-graduation-cap"></i> ${p.faculty}</div>
-              <div class="seller-schedule"><i class="fa-regular fa-clock"></i> ${p.schedule}</div>
-              <div class="seller-location"><i class="fa-solid fa-shield-cat"></i> ${pointText}</div>
-            </div>
           </div>
           <div class="card-footer">
             <span class="stock-info ${isUnavailable ? 'low' : (p.stock <= 2 ? 'low' : '')}"><i class="fa-solid fa-boxes-stacked"></i> ${isSoldOut ? '0 disponibles' : p.stock + ' disponibles'}</span>
@@ -783,13 +777,62 @@ function clearCart() {
 }
 
 async function checkout() {
-  if (cart.length === 0) return Swal.fire({ icon: 'warning', title: 'Carrito Vacío', text: 'Selecciona al menos un artículo antes de pedir.', confirmButtonColor: '#002b49' });
-  
+  if (cart.length === 0) {
+    return Swal.fire({
+      icon: 'warning',
+      title: 'Carrito Vacío',
+      text: 'Selecciona al menos un artículo antes de pedir.',
+      confirmButtonColor: '#002b49'
+    });
+  }
+
+  const customStyles = [];
+  if (typeof accSettings !== 'undefined') {
+    if (accSettings.fontLine) customStyles.push(`line-height: ${accSettings.fontLine}`);
+    if (accSettings.fontWord) customStyles.push(`word-spacing: ${accSettings.fontWord}px`);
+    if (accSettings.fontLetter) customStyles.push(`letter-spacing: ${accSettings.fontLetter}px`);
+  }
+  const inlineStyleAttr = customStyles.length ? `style="${customStyles.join('; ')};"` : '';
+
+  if (typeof speakText === 'function') {
+    speakText('Selecciona método de pago. ¿Cómo deseas realizar el pago al vendedor en campus? Efectivo o Transferencia Electrónica.');
+  }
+
   Swal.fire({
     title: 'Selecciona Método de Pago',
-    html: `<div style="text-align:left; margin-top:10px;"><p style="font-size:0.9rem; color:var(--text-muted); margin-bottom:12px;">¿Cómo deseas realizar el pago al vendedor en campus?</p><label style="display:block; margin-bottom:10px; font-weight:600; cursor:pointer;"><input type="radio" name="payMethod" value="Efectivo" checked> 💵 Efectivo al entregar en Campus</label><label style="display:block; margin-bottom:10px; font-weight:600; cursor:pointer;"><input type="radio" name="payMethod" value="Transferencia" > 📱 Transferencia Electrónica (SPEI / BBVA / Santander)</label></div>`,
-    icon: 'credit-card', showCancelButton: true, confirmButtonText: 'Confirmar Pedido', cancelButtonText: 'Cancelar', confirmButtonColor: '#002b49',
-    preConfirm: () => { const selected = document.querySelector('input[name="payMethod"]:checked'); return selected ? selected.value : 'Efectivo'; }
+    customClass: {
+      popup: 'uaem-pay-popup'
+    },
+    html: `
+      <div class="uaem-pay-modal" ${inlineStyleAttr}>
+        <p class="uaem-pay-subtitle">¿Cómo deseas realizar el pago al vendedor en campus?</p>
+        <div class="uaem-pay-options">
+          <label class="uaem-pay-option">
+            <input type="radio" name="payMethod" value="Efectivo" checked>
+            <span class="uaem-pay-text">
+              <span>💵 Efectivo al entregar en Campus</span>
+              <span class="uaem-pay-desc">Pago directo en el punto acordado dentro de la UAEM</span>
+            </span>
+          </label>
+          <label class="uaem-pay-option">
+            <input type="radio" name="payMethod" value="Transferencia">
+            <span class="uaem-pay-text">
+              <span>📱 Transferencia Electrónica</span>
+              <span class="uaem-pay-desc">SPEI / BBVA / Santander al momento de la entrega</span>
+            </span>
+          </label>
+        </div>
+      </div>
+    `,
+    icon: 'credit-card',
+    showCancelButton: true,
+    confirmButtonText: 'Confirmar Pedido',
+    cancelButtonText: 'Cancelar',
+    confirmButtonColor: '#002b49',
+    preConfirm: () => {
+      const selected = document.querySelector('input[name="payMethod"]:checked');
+      return selected ? selected.value : 'Efectivo';
+    }
   }).then(async (result) => {
     if (result.isConfirmed) {
       const selectedMethod = result.value;
@@ -822,10 +865,18 @@ async function checkout() {
       }
 
       localStorage.setItem('uaem_sales_history', JSON.stringify(salesHistory));
-      cart = []; localStorage.setItem('uaem_cart', JSON.stringify(cart));
-      
+      cart = [];
+      localStorage.setItem('uaem_cart', JSON.stringify(cart));
+
       await fetchProductsFromSupabase();
-      Swal.fire({ icon: 'success', title: '¡Pedido Confirmado!', text: `Pago registrado mediante: ${selectedMethod}. Stock actualizado en Supabase.`, confirmButtonColor: '#002b49' }).then(() => { window.location.href = 'mis-compras.html'; });
+      Swal.fire({
+        icon: 'success',
+        title: '¡Pedido Confirmado!',
+        text: `Pago registrado mediante: ${selectedMethod}. Stock actualizado en Supabase.`,
+        confirmButtonColor: '#002b49'
+      }).then(() => {
+        window.location.href = 'mis-compras.html';
+      });
     }
   });
 }
@@ -881,7 +932,7 @@ function renderMyProducts() {
           <td>
             <div style="display:flex; gap:8px;">
               ${p.suspendido 
-                ? `<button class="btn btn-disabled" disabled style="padding: 6px 12px; font-size: 0.8rem;" title="Solo el administrador puede rehabilitar este artículo"><i class="fa-solid fa-lock"></i> Bloqueado por Admin</button>`
+                ? `<button class="btn btn-warning" style="padding: 6px 12px; font-size: 0.8rem;" onclick="openEditProductModal(${p.id})" title="Modificar artículo para solicitar revisión"><i class="fa-solid fa-wrench"></i> Atender Suspensión</button>`
                 : `<button class="btn btn-warning" style="padding: 6px 12px; font-size: 0.8rem;" onclick="openEditProductModal(${p.id})"><i class="fa-solid fa-pen-to-square"></i> Reabastecer / Editar</button>`
               }
               <button class="btn btn-danger" style="padding: 6px 12px; font-size: 0.8rem;" onclick="confirmDeleteProduct(${p.id})"><i class="fa-solid fa-trash"></i> Eliminar</button>
@@ -1220,3 +1271,871 @@ async function clearNotifications() {
     renderUserNotifications();
   }
 }
+
+// ==========================================
+// SMART HEADER AL SUBIR / BAJAR
+// ==========================================
+(function () {
+  function getScrollTop() {
+    return window.pageYOffset || document.documentElement.scrollTop || document.body.scrollTop || 0;
+  }
+
+  let lastY = getScrollTop();
+  let ticking = false;
+
+  function updateHeaderOnScroll() {
+    const header = document.querySelector('header');
+    if (!header) {
+      ticking = false;
+      return;
+    }
+
+    const currentY = getScrollTop();
+    const delta = currentY - lastY;
+
+    // Cerca del inicio siempre visible
+    if (currentY <= 50) {
+      header.classList.remove('header-hidden');
+      lastY = currentY;
+      ticking = false;
+      return;
+    }
+
+    // Si baja más de 5px -> ocultar
+    if (delta > 5) {
+      header.classList.add('header-hidden');
+      const notifDropdown = document.getElementById('notifDropdown');
+      if (notifDropdown) notifDropdown.classList.remove('active');
+      lastY = currentY;
+    }
+    // Si sube más de 5px -> mostrar de inmediato
+    else if (delta < -5) {
+      header.classList.remove('header-hidden');
+      lastY = currentY;
+    }
+
+    ticking = false;
+  }
+
+  window.addEventListener('scroll', function () {
+    if (!ticking) {
+      window.requestAnimationFrame(updateHeaderOnScroll);
+      ticking = true;
+    }
+  }, { passive: true });
+})();
+
+// ==========================================
+// MENÚ DESPLEGABLE DE USUARIO + INDICADOR VISUAL
+// ==========================================
+function toggleUserMenu(e) {
+  if (e) e.stopPropagation();
+  const wrapper = document.getElementById('userMenuWrapper');
+  if (!wrapper) return;
+  const isOpen = wrapper.classList.toggle('open');
+  const btn = document.getElementById('userPillBtn');
+  if (btn) btn.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+
+  // Si se cierra el menú principal, cerramos también el panel interno de notificaciones
+  if (!isOpen) {
+    const notifDropdown = document.getElementById('notifDropdown');
+    if (notifDropdown) notifDropdown.classList.remove('active');
+  }
+}
+
+window.addEventListener('click', (e) => {
+  if (!e.target.closest('#userMenuWrapper')) {
+    const wrapper = document.getElementById('userMenuWrapper');
+    if (wrapper) wrapper.classList.remove('open');
+    const btn = document.getElementById('userPillBtn');
+    if (btn) btn.setAttribute('aria-expanded', 'false');
+  }
+});
+
+// Envolvemos renderUserNotifications sin modificar su funcionamiento interno
+// para activar el brillo dorado y el punto rojo en el recuadro del usuario
+const _originalRenderUserNotifications = renderUserNotifications;
+renderUserNotifications = function () {
+  _originalRenderUserNotifications();
+
+  const userPillBtn = document.getElementById('userPillBtn');
+  const userNotifDot = document.getElementById('userNotifDot');
+  const hasNotifs = Array.isArray(userNotifications) && userNotifications.length > 0;
+
+  if (userPillBtn) {
+    userPillBtn.classList.toggle('has-notifications', hasNotifs);
+  }
+  if (userNotifDot) {
+    userNotifDot.style.display = hasNotifs ? 'block' : 'none';
+  }
+};
+
+// También ocultamos el divisor del menú si es Administrador (donde navNotificaciones se oculta)
+window.addEventListener('DOMContentLoaded', () => {
+  const isAdmin = currentUser && (currentUser.email === 'admin@sistema.uaem' || currentUser.role?.includes('Administrador'));
+  if (isAdmin) {
+    const divider = document.getElementById('userMenuDivider');
+    if (divider) divider.style.display = 'none';
+  }
+});
+
+// Asegura que en modo Administrador solo se muestren los botones permitidos en el navbar
+window.addEventListener('DOMContentLoaded', () => {
+  const isAdmin = currentUser && (currentUser.email === 'admin@sistema.uaem' || currentUser.role?.includes('Administrador'));
+  if (!isAdmin) return;
+
+  const allowedHrefs = ['index.html', 'admin.html'];
+  document.querySelectorAll('header .nav-actions > a.nav-btn, header .nav-actions > button.nav-btn').forEach(el => {
+    const href = el.getAttribute('href');
+    if (href && !allowedHrefs.includes(href)) {
+      el.style.display = 'none';
+    } else if (!href && el.getAttribute('onclick')?.includes('openAddModal')) {
+      el.style.display = 'none';
+    }
+  });
+});
+
+// Marca body.is-admin-user cuando el usuario actual es Administrador
+function applyAdminNavbarClass() {
+  const isAdmin = Boolean(
+    currentUser &&
+    (currentUser.email === 'admin@sistema.uaem' || currentUser.role?.includes('Administrador'))
+  );
+  document.body.classList.toggle('is-admin-user', isAdmin);
+}
+
+window.addEventListener('DOMContentLoaded', applyAdminNavbarClass);
+
+const _origUpdateUserUI = updateUserUI;
+updateUserUI = function () {
+  _origUpdateUserUI();
+  applyAdminNavbarClass();
+};
+
+
+
+
+// ==========================================
+// AVISO AL ADMIN TRAS MODIFICAR PRODUCTO SUSPENDIDO
+// ==========================================
+const ADMIN_NOTIFY_EMAIL = 'admin@sistema.uaem';
+
+// Permitir que el Admin también reciba notificaciones en tiempo real en su campana/alerta
+const _origInitRealtimeListeners = initRealtimeListeners;
+initRealtimeListeners = function () {
+  _origInitRealtimeListeners();
+
+  if (!supabaseClient || !currentUser) return;
+  const isAdmin = currentUser.email === ADMIN_NOTIFY_EMAIL || currentUser.role?.includes('Administrador');
+  if (!isAdmin) return;
+
+  supabaseClient
+    .channel('admin-notificaciones-realtime')
+    .on(
+      'postgres_changes',
+      {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'notificaciones',
+        filter: `usuario_email=eq.${ADMIN_NOTIFY_EMAIL}`
+      },
+      async (payload) => {
+        const notif = payload.new;
+        userNotifications.unshift(notif);
+        if (typeof renderUserNotifications === 'function') renderUserNotifications();
+
+        await Swal.fire({
+          icon: notif.tipo === 'danger' ? 'error' : (notif.tipo === 'success' ? 'success' : 'info'),
+          title: notif.titulo,
+          text: notif.mensaje,
+          confirmButtonColor: '#002b49',
+          confirmButtonText: 'Revisar'
+        });
+      }
+    )
+    .subscribe();
+};
+
+// Interceptamos openEditProductModal para permitir editar un producto suspendido
+// y notificar al administrador con un mensaje opcional o preestablecido
+const _origOpenEditProductModal = openEditProductModal;
+openEditProductModal = function (id) {
+  const prod = products.find(p => p.id === id);
+  if (!prod) return;
+
+  // Si NO está suspendido, se ejecuta exactamente tu modal original
+  if (!prod.suspendido) {
+    return _origOpenEditProductModal(id);
+  }
+
+  const defaultNote = 'Se realizaron los ajustes solicitados tras la suspensión para su revisión.';
+
+  Swal.fire({
+    title: 'Atender Producto Suspendido',
+    html: `
+      <div style="text-align:left;">
+        <p style="font-size:0.82rem; color:#991b1b; background:#fee2e2; padding:8px 10px; border-radius:6px; margin-bottom:12px;">
+          <strong>Motivo de suspensión:</strong> ${prod.motivoSuspension || 'Revisión de moderación'}
+        </p>
+        <label style="font-weight:700; font-size:0.85rem; color:#002b49;">Precio ($ MXN):</label>
+        <input id="swal-susp-price" type="number" class="swal2-input" value="${prod.price}" style="margin: 6px 0 12px 0; width:100%;">
+        <label style="font-weight:700; font-size:0.85rem; color:#002b49;">Unidades Disponibles (Stock):</label>
+        <input id="swal-susp-stock" type="number" class="swal2-input" value="${prod.stock}" min="0" style="margin: 6px 0 12px 0; width:100%;">
+        <label style="font-weight:700; font-size:0.85rem; color:#002b49;">Horario de Entrega:</label>
+        <select id="swal-susp-schedule" class="swal2-input" style="margin: 6px 0 12px 0; width:100%;">
+          <option value="Turno Matutino (7:00 AM - 1:00 PM)" ${prod.schedule?.includes('Matutino') ? 'selected' : ''}>Turno Matutino (7:00 AM - 1:00 PM)</option>
+          <option value="Turno Vespertino (1:00 PM - 7:00 PM)" ${prod.schedule?.includes('Vespertino') ? 'selected' : ''}>Turno Vespertino (1:00 PM - 7:00 PM)</option>
+          <option value="Horario de Profesor (Previa Cita Cubículo)" ${prod.schedule?.includes('Profesor') ? 'selected' : ''}>Horario de Profesor / Cubículo</option>
+          <option value="Entrega Inmediata entre Clases" ${prod.schedule?.includes('Inmediata') ? 'selected' : ''}>Entrega Inmediata entre Clases</option>
+        </select>
+        <label style="font-weight:700; font-size:0.85rem; color:#002b49;">Mensaje para el Administrador (opcional):</label>
+        <textarea id="swal-susp-msg" class="swal2-textarea" placeholder="${defaultNote}" style="margin: 6px 0 0 0; width:100%; height:75px; font-size:0.85rem;"></textarea>
+      </div>
+    `,
+    showCancelButton: true,
+    confirmButtonText: 'Guardar y Notificar a Admin',
+    cancelButtonText: 'Cancelar',
+    confirmButtonColor: '#002b49',
+    preConfirm: () => {
+      const customMsg = document.getElementById('swal-susp-msg').value.trim();
+      return {
+        price: parseFloat(document.getElementById('swal-susp-price').value),
+        stock: parseInt(document.getElementById('swal-susp-stock').value),
+        schedule: document.getElementById('swal-susp-schedule').value,
+        note: customMsg || defaultNote
+      };
+    }
+  }).then(async (result) => {
+    if (!result.isConfirmed) return;
+
+    const { price, stock, schedule, note } = result.value;
+    const { error } = await supabaseClient
+      .from('productos')
+      .update({ precio: price, stock: stock, horario: schedule })
+      .eq('id', id);
+
+    if (error) {
+      return Swal.fire({ icon: 'error', title: 'Error al Actualizar', text: error.message, confirmButtonColor: '#002b49' });
+    }
+
+    await createSupabaseNotification(
+      ADMIN_NOTIFY_EMAIL,
+      '🛠️ Producto Modificado Tras Suspensión',
+      `El vendedor ${currentUser?.name || prod.seller} actualizó "${prod.name}" (Precio: $${price.toFixed(2)}, Stock: ${stock}) para revisión. Mensaje: "${note}"`,
+      'info'
+    );
+
+    await fetchProductsFromSupabase();
+    if (typeof renderMyProducts === 'function') renderMyProducts();
+    if (typeof renderProducts === 'function') renderProducts();
+
+    Swal.fire({
+      icon: 'success',
+      title: 'Cambios Guardados y Notificados',
+      text: 'Se avisó al administrador para que revise tu artículo actualizado.',
+      confirmButtonColor: '#002b49'
+    });
+  });
+};
+
+
+// ==========================================
+// SUBIR IMAGEN A SUPABASE STORAGE O USAR URL
+// ==========================================
+async function resolveProductImage(fileInputId, urlInputId, fallbackImage) {
+  const fileInput = document.getElementById(fileInputId);
+  const urlInput = document.getElementById(urlInputId);
+  const typedUrl = urlInput ? urlInput.value.trim() : '';
+
+  const selectedFile = fileInput && fileInput.files && fileInput.files[0]
+    ? fileInput.files[0]
+    : null;
+
+  if (selectedFile && supabaseClient) {
+    const ext = (selectedFile.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '');
+    const cleanUser = (currentUser?.email || 'usuario').replace(/[^a-zA-Z0-9]/g, '_');
+    const filePath = `${cleanUser}/${Date.now()}_${Math.random().toString(36).slice(2, 7)}.${ext}`;
+
+    const { error: uploadError } = await supabaseClient.storage
+      .from('productos-imagenes')
+      .upload(filePath, selectedFile, {
+        cacheControl: '3600',
+        upsert: false
+      });
+
+    if (uploadError) {
+      throw new Error('No se pudo subir la imagen: ' + uploadError.message);
+    }
+
+    const { data: publicData } = supabaseClient.storage
+      .from('productos-imagenes')
+      .getPublicUrl(filePath);
+
+    if (publicData && publicData.publicUrl) {
+      return publicData.publicUrl;
+    }
+  }
+
+  return typedUrl || fallbackImage;
+}
+
+
+const _origSaveProductSubmit = saveProductSubmit;
+saveProductSubmit = async function (e) {
+  if (e) e.preventDefault();
+  try {
+    const finalImageUrl = await resolveProductImage(
+      'pImageFile',
+      'pImage',
+      'https://images.unsplash.com/photo-1544816155-12df9643f363?auto=format&fit=crop&w=600&q=80'
+    );
+    const urlField = document.getElementById('pImage');
+    if (urlField) urlField.value = finalImageUrl;
+  } catch (err) {
+    return Swal.fire({ icon: 'error', title: 'Error de Imagen', text: err.message, confirmButtonColor: '#002b49' });
+  }
+  return _origSaveProductSubmit(e);
+};
+
+
+// Permitir editar URL o subir nueva foto con cajoncito accesible en móvil
+// Permitir editar URL, subir nueva foto con cajoncito accesible en móvil y cambiar Punto de Entrega
+// Permitir editar URL, subir nueva foto con cajoncito accesible en móvil y cambiar Punto de Entrega
+const _origOpenEditModalWithPhoto = openEditProductModal;
+openEditProductModal = function (id) {
+  const prod = products.find(p => p.id === id);
+  if (!prod) return _origOpenEditModalWithPhoto(id);
+
+  const defaultNote = 'Se realizaron los ajustes solicitados tras la suspensión para su revisión.';
+  const deliverySelect = document.getElementById('pDeliveryPoint');
+  const deliveryOptionsHtml = deliverySelect && deliverySelect.options.length > 0
+    ? Array.from(deliverySelect.options).map(opt =>
+        `<option value="${opt.value}" ${prod.deliveryPoint === opt.value ? 'selected' : ''}>${opt.textContent}</option>`
+      ).join('')
+    : `<option value="${prod.deliveryPoint || ''}" selected>${prod.deliveryPoint || 'Punto de Entrega UAEM'}</option>`;
+
+  const customStyles = [];
+  if (typeof accSettings !== 'undefined') {
+    if (accSettings.fontLine) customStyles.push(`line-height: ${accSettings.fontLine}`);
+    if (accSettings.fontWord) customStyles.push(`word-spacing: ${accSettings.fontWord}px`);
+    if (accSettings.fontLetter) customStyles.push(`letter-spacing: ${accSettings.fontLetter}px`);
+  }
+  const inlineStyleAttr = customStyles.length ? `style="${customStyles.join('; ')};"` : '';
+
+  if (typeof speakText === 'function') {
+    speakText(`${prod.suspendido ? 'Atender producto suspendido' : 'Editar o reabastecer stock'}: ${prod.name}.`);
+  }
+
+  Swal.fire({
+    title: prod.suspendido ? 'Atender Producto Suspendido' : 'Editar / Reabastecer Stock',
+    customClass: {
+      popup: 'uaem-edit-popup'
+    },
+    html: `
+      <div class="uaem-edit-modal" ${inlineStyleAttr}>
+        ${prod.suspendido ? `
+          <p class="uaem-edit-alert">
+            <strong>Motivo de suspensión:</strong> ${prod.motivoSuspension || 'Revisión de moderación'}
+          </p>` : ''}
+
+        <label class="uaem-edit-label">Precio ($ MXN):</label>
+        <input id="swal-edit-price" type="number" class="swal2-input" value="${prod.price}" style="margin: 6px 0 12px 0; width:100%;">
+
+        <label class="uaem-edit-label">Unidades Disponibles (Stock):</label>
+        <input id="swal-edit-stock" type="number" class="swal2-input" value="${prod.stock}" min="0" style="margin: 6px 0 12px 0; width:100%;">
+
+        <label class="uaem-edit-label">Horario de Entrega:</label>
+        <select id="swal-edit-schedule" class="swal2-input" style="margin: 6px 0 12px 0; width:100%;">
+          <option value="Turno Matutino (7:00 AM - 1:00 PM)" ${prod.schedule?.includes('Matutino') ? 'selected' : ''}>Turno Matutino (7:00 AM - 1:00 PM)</option>
+          <option value="Turno Vespertino (1:00 PM - 7:00 PM)" ${prod.schedule?.includes('Vespertino') ? 'selected' : ''}>Turno Vespertino (1:00 PM - 7:00 PM)</option>
+          <option value="Horario de Profesor (Previa Cita Cubículo)" ${prod.schedule?.includes('Profesor') ? 'selected' : ''}>Horario de Profesor / Cubículo</option>
+          <option value="Entrega Inmediata entre Clases" ${prod.schedule?.includes('Inmediata') ? 'selected' : ''}>Entrega Inmediata entre Clases</option>
+        </select>
+
+        <label class="uaem-edit-label">Punto de Entrega Seguro:</label>
+        <select id="swal-edit-delivery" class="swal2-input" style="margin: 6px 0 12px 0; width:100%;">
+          ${deliveryOptionsHtml}
+        </select>
+
+        <label class="uaem-edit-label">URL de Foto del Producto:</label>
+        <input id="swal-edit-img-url" type="url" class="swal2-input" value="${prod.image || ''}" placeholder="https://..." style="margin: 6px 0 12px 0; width:100%;">
+
+        <label class="uaem-edit-label">O subir nueva foto (reemplaza la URL):</label>
+        <div class="file-upload-box">
+          <label for="swal-edit-img-file" class="file-upload-trigger">
+            <i class="fa-solid fa-camera"></i> Elegir Foto desde Galería / Cámara
+          </label>
+          <input id="swal-edit-img-file" type="file" accept="image/*" style="display:none;">
+          <div id="swal-edit-file-name" class="file-upload-name">Ningún archivo nuevo seleccionado</div>
+        </div>
+
+        ${prod.suspendido ? `
+          <label class="uaem-edit-label">Mensaje para el Administrador (opcional):</label>
+          <textarea id="swal-edit-msg" class="swal2-textarea" placeholder="${defaultNote}" style="margin: 6px 0 0 0; width:100%; height:70px; font-size:0.85rem;"></textarea>
+        ` : ''}
+      </div>
+    `,
+    didOpen: () => {
+      const fileInput = document.getElementById('swal-edit-img-file');
+      const nameLabel = document.getElementById('swal-edit-file-name');
+      if (fileInput && nameLabel) {
+        fileInput.addEventListener('change', () => {
+          const f = fileInput.files && fileInput.files[0];
+          nameLabel.textContent = f ? `Seleccionada: ${f.name}` : 'Ningún archivo nuevo seleccionado';
+        });
+      }
+    },
+    showCancelButton: true,
+    confirmButtonText: prod.suspendido ? 'Guardar y Notificar a Admin' : 'Guardar Cambios',
+    cancelButtonText: 'Cancelar',
+    confirmButtonColor: '#002b49',
+    preConfirm: async () => {
+      try {
+        const finalImg = await resolveProductImage('swal-edit-img-file', 'swal-edit-img-url', prod.image);
+        const msgEl = document.getElementById('swal-edit-msg');
+        return {
+          price: parseFloat(document.getElementById('swal-edit-price').value),
+          stock: parseInt(document.getElementById('swal-edit-stock').value),
+          schedule: document.getElementById('swal-edit-schedule').value,
+          deliveryPoint: document.getElementById('swal-edit-delivery').value,
+          image: finalImg,
+          note: msgEl ? (msgEl.value.trim() || defaultNote) : ''
+        };
+      } catch (err) {
+        Swal.showValidationMessage(err.message);
+        return false;
+      }
+    }
+  }).then(async (result) => {
+    if (!result.isConfirmed || !result.value) return;
+    const { price, stock, schedule, deliveryPoint, image, note } = result.value;
+
+    const { error } = await supabaseClient
+      .from('productos')
+      .update({
+        precio: price,
+        stock: stock,
+        horario: schedule,
+        delivery_point: deliveryPoint,
+        image: image
+      })
+      .eq('id', id);
+
+    if (error) {
+      return Swal.fire({ icon: 'error', title: 'Error al Actualizar', text: error.message, confirmButtonColor: '#002b49' });
+    }
+
+    if (prod.suspendido && typeof createSupabaseNotification === 'function') {
+      await createSupabaseNotification(
+        typeof ADMIN_NOTIFY_EMAIL !== 'undefined' ? ADMIN_NOTIFY_EMAIL : 'admin@sistema.uaem',
+        '🛠️ Producto Modificado Tras Suspensión',
+        `El vendedor ${currentUser?.name || prod.seller} actualizó "${prod.name}" (Precio: $${price.toFixed(2)}, Stock: ${stock}) para revisión. Mensaje: "${note}"`,
+        'info'
+      );
+    }
+
+    await fetchProductsFromSupabase();
+    if (typeof renderMyProducts === 'function') renderMyProducts();
+    if (typeof renderProducts === 'function') renderProducts();
+
+    Swal.fire({
+      icon: 'success',
+      title: 'Actualizado',
+      text: prod.suspendido
+        ? 'Cambios y foto guardados; se notificó al administrador.'
+        : 'Cambios y foto guardados en Supabase.',
+      confirmButtonColor: '#002b49'
+    });
+  });
+};
+
+
+
+function openProductDetailModal(id) {
+  const prod = products.find(p => p.id === id);
+  if (!prod) return;
+
+  const isSoldOut = prod.stock <= 0;
+  const canBuy = !prod.suspendido && !isSoldOut;
+  const pointText = prod.deliveryPoint || `Botón de Pánico - ${prod.faculty}`;
+  const stockLabel = isSoldOut ? 'Agotado' : `${prod.stock} disponibles`;
+
+  const customStyles = [];
+  if (typeof accSettings !== 'undefined') {
+    if (accSettings.fontLine) customStyles.push(`line-height: ${accSettings.fontLine}`);
+    if (accSettings.fontWord) customStyles.push(`word-spacing: ${accSettings.fontWord}px`);
+    if (accSettings.fontLetter) customStyles.push(`letter-spacing: ${accSettings.fontLetter}px`);
+  }
+  const inlineStyleAttr = customStyles.length ? `style="${customStyles.join('; ')};"` : '';
+
+  if (typeof speakText === 'function') {
+    speakText(`${prod.name}. Precio ${Number(prod.price).toFixed(2)} pesos. ${stockLabel}. Vendedor: ${prod.seller}. Punto de entrega: ${pointText}.`);
+  }
+
+  Swal.fire({
+    title: prod.name,
+    customClass: {
+      popup: 'uaem-detail-popup'
+    },
+    html: `
+      <div class="uaem-detail-modal" ${inlineStyleAttr}>
+        <div class="uaem-detail-img-wrap">
+          <img
+            class="uaem-detail-img"
+            src="${prod.image}"
+            alt="${prod.name}"
+            onerror="this.src='https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?auto=format&fit=crop&w=600&q=80'"
+          >
+        </div>
+
+        <div class="uaem-detail-summary">
+          <span class="uaem-detail-price">$${Number(prod.price).toFixed(2)} MXN</span>
+          <div class="uaem-detail-pills">
+            <span class="uaem-detail-pill"><i class="fa-solid fa-boxes-stacked"></i> ${stockLabel}</span>
+            <span class="uaem-detail-pill"><i class="fa-solid fa-tag"></i> ${prod.category}</span>
+          </div>
+        </div>
+
+        <div class="uaem-detail-meta-list">
+          <div class="uaem-detail-row">
+            <i class="fa-solid fa-user"></i>
+            <div><strong>Vendedor:</strong> ${prod.seller}</div>
+          </div>
+          <div class="uaem-detail-row">
+            <i class="fa-solid fa-building-columns"></i>
+            <div><strong>Facultad / Campus:</strong> ${prod.faculty}</div>
+          </div>
+          <div class="uaem-detail-row">
+            <i class="fa-regular fa-clock"></i>
+            <div><strong>Horario:</strong> ${prod.schedule}</div>
+          </div>
+          <div class="uaem-detail-row">
+            <i class="fa-solid fa-shield-cat safe-icon"></i>
+            <div><strong>Punto Seguro:</strong> ${pointText}</div>
+          </div>
+        </div>
+      </div>
+    `,
+    showCancelButton: true,
+    showConfirmButton: canBuy,
+    confirmButtonText: '<i class="fa-solid fa-cart-plus"></i> Agregar al Carrito',
+    cancelButtonText: 'Cerrar',
+    confirmButtonColor: '#002b49'
+  }).then((res) => {
+    if (res.isConfirmed && canBuy && typeof addToCart === 'function') {
+      addToCart(prod.id);
+    }
+  });
+}
+
+
+const _origOpenAddModalAcc = openAddModal;
+openAddModal = function () {
+  _origOpenAddModalAcc();
+
+  const modalContent = document.querySelector('#productModal .modal-content');
+  if (modalContent && typeof accSettings !== 'undefined') {
+    modalContent.style.lineHeight = accSettings.fontLine || '';
+    modalContent.style.wordSpacing = (accSettings.fontWord || 0) + 'px';
+    modalContent.style.letterSpacing = (accSettings.fontLetter || 0) + 'px';
+  }
+
+  if (typeof speakText === 'function') {
+    speakText('Publicar artículo en UAEM Store.');
+  }
+};
+
+
+let uaemSalesChartInstance = null;
+
+function getAdminChartPalette() {
+  const isDarkHC = document.body.classList.contains('high-contrast-dark');
+  const isLightHC = document.body.classList.contains('high-contrast-light');
+
+  if (isDarkHC) {
+    return {
+      barBg: 'rgba(255, 215, 0, 0.85)',
+      barBorder: '#ffff00',
+      textColor: '#ffff00',
+      gridColor: 'rgba(255, 215, 0, 0.25)'
+    };
+  }
+
+  if (isLightHC) {
+    return {
+      barBg: 'rgba(0, 0, 0, 0.85)',
+      barBorder: '#000000',
+      textColor: '#000000',
+      gridColor: 'rgba(0, 0, 0, 0.2)'
+    };
+  }
+
+  return {
+    barBg: 'rgba(0, 43, 73, 0.82)',
+    barBorder: '#002b49',
+    textColor: '#1e293b',
+    gridColor: 'rgba(148, 163, 184, 0.25)'
+  };
+}
+
+async function fetchRealActiveUsersCount() {
+  let activeCount = 0;
+
+  try {
+    if (typeof supabaseClient !== 'undefined' && supabaseClient) {
+      const { data, error, count } = await supabaseClient
+        .from('usuarios')
+        .select('correo', { count: 'exact' });
+
+      if (!error) {
+        if (typeof count === 'number') {
+          activeCount = count;
+        } else if (Array.isArray(data)) {
+          activeCount = data.length;
+        }
+      }
+    }
+  } catch (err) {
+    console.warn('No se pudo consultar tabla usuarios directamente:', err);
+  }
+
+  // Respaldo si RLS bloquea lectura de tabla usuarios o no hay filas visibles:
+  // cuenta correos/vendedores únicos registrados en productos y ventas
+  if (!activeCount) {
+    const uniqueUsers = new Set();
+    if (Array.isArray(window.products)) {
+      window.products.forEach(p => {
+        const key = (p.sellerEmail || p.seller || '').toLowerCase().trim();
+        if (key) uniqueUsers.add(key);
+      });
+    }
+    if (Array.isArray(window.salesHistory)) {
+      window.salesHistory.forEach(s => {
+        const buyerKey = (s.buyerEmail || s.buyer || '').toLowerCase().trim();
+        const sellerKey = (s.sellerEmail || s.seller || '').toLowerCase().trim();
+        if (buyerKey) uniqueUsers.add(buyerKey);
+        if (sellerKey) uniqueUsers.add(sellerKey);
+      });
+    }
+    activeCount = uniqueUsers.size;
+  }
+
+  return activeCount;
+}
+
+function buildDailySalesSeries(salesList) {
+  const byDay = new Map();
+
+  (salesList || []).forEach(sale => {
+    const rawDate = sale.date || '';
+    // Soporta formatos como "24/11/2026 10:30" o ISO "2026-11-24..."
+    const dayKey = rawDate.includes(' ')
+      ? rawDate.split(' ')[0]
+      : (rawDate.slice(0, 10) || 'Sin fecha');
+
+    const amount = Number(sale.total) || 0;
+    byDay.set(dayKey, (byDay.get(dayKey) || 0) + amount);
+  });
+
+  const labels = Array.from(byDay.keys());
+  const values = Array.from(byDay.values());
+  return { labels, values };
+}
+
+function renderAdminSalesChart() {
+  const canvas = document.getElementById('salesChart');
+  if (!canvas || typeof Chart === 'undefined') return;
+
+  const salesList = Array.isArray(window.salesHistory) ? window.salesHistory : [];
+  const { labels, values } = buildDailySalesSeries(salesList);
+  const palette = getAdminChartPalette();
+
+  if (uaemSalesChartInstance) {
+    uaemSalesChartInstance.destroy();
+    uaemSalesChartInstance = null;
+  }
+
+  const hasSales = labels.length > 0 && values.some(v => v > 0);
+  const chartLabels = hasSales ? labels : ['Sin ventas registradas'];
+  const chartData = hasSales ? values : [0];
+
+  uaemSalesChartInstance = new Chart(canvas.getContext('2d'), {
+    type: 'bar',
+    data: {
+      labels: chartLabels,
+      datasets: [{
+        label: 'Ventas Diarias ($ MXN)',
+        data: chartData,
+        backgroundColor: palette.barBg,
+        borderColor: palette.barBorder,
+        borderWidth: 1.5,
+        borderRadius: 6
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          labels: {
+            color: palette.textColor,
+            font: { weight: '700' }
+          }
+        }
+      },
+      scales: {
+        x: {
+          ticks: { color: palette.textColor },
+          grid: { color: palette.gridColor }
+        },
+        y: {
+          beginAtZero: true,
+          ticks: {
+            color: palette.textColor,
+            callback: (val) => `$${val}`
+          },
+          grid: { color: palette.gridColor }
+        }
+      }
+    }
+  });
+}
+
+async function initAdminDashboard() {
+  const salesList = Array.isArray(window.salesHistory) ? window.salesHistory : [];
+  const productList = Array.isArray(window.products) ? window.products : [];
+
+  const totalSalesAmount = salesList.reduce((acc, item) => acc + (Number(item.total) || 0), 0);
+  const totalProductsCount = productList.length;
+  const activeUsersCount = await fetchRealActiveUsersCount();
+
+  const kpiSalesEl = document.getElementById('kpiTotalSales');
+  const kpiProductsEl = document.getElementById('kpiTotalProducts');
+  const kpiUsersEl = document.getElementById('kpiTotalUsers');
+
+  if (kpiSalesEl) kpiSalesEl.textContent = `$${totalSalesAmount.toFixed(2)} MXN`;
+  if (kpiProductsEl) kpiProductsEl.textContent = String(totalProductsCount);
+  if (kpiUsersEl) kpiUsersEl.textContent = String(activeUsersCount);
+
+  renderAdminSalesChart();
+
+  if (typeof speakText === 'function') {
+    speakText(`Panel de control universitario. Ventas totales: ${totalSalesAmount.toFixed(2)} pesos. Productos publicados: ${totalProductsCount}. Usuarios activos: ${activeUsersCount}.`);
+  }
+}
+
+window.addEventListener('DOMContentLoaded', () => {
+  if (!document.getElementById('salesChart')) return;
+
+  // Pequeño retraso para asegurar que main.js ya cargó products y salesHistory
+  setTimeout(() => {
+    initAdminDashboard();
+  }, 150);
+
+  // Re-dibujar gráfica cuando cambie el contraste o la fuente en accesibilidad
+  const accPanel = document.getElementById('accessibilityPanel');
+  if (accPanel) {
+    accPanel.addEventListener('click', () => {
+      setTimeout(() => {
+        renderAdminSalesChart();
+      }, 60);
+    });
+  }
+});
+
+
+// ==========================================
+// LÍMITE DE INTENTOS EN LOGIN Y VALIDACIÓN DE REGISTRO
+// ==========================================
+const MAX_LOGIN_ATTEMPTS = 3;
+const LOGIN_LOCK_SECONDS = 60;
+
+function getLoginLockState() {
+  return JSON.parse(localStorage.getItem('uaem_login_lock')) || { attempts: 0, lockUntil: 0 };
+}
+
+function saveLoginLockState(state) {
+  localStorage.setItem('uaem_login_lock', JSON.stringify(state));
+}
+
+const _origLoginUserSubmit = loginUserSubmit;
+loginUserSubmit = async function (e) {
+  if (e) e.preventDefault();
+
+  const state = getLoginLockState();
+  const now = Date.now();
+
+  if (state.lockUntil && now < state.lockUntil) {
+    const secsLeft = Math.ceil((state.lockUntil - now) / 1000);
+    return Swal.fire({
+      icon: 'warning',
+      title: 'Demasiados Intentos',
+      text: `Has alcanzado el límite de ${MAX_LOGIN_ATTEMPTS} intentos. Espera ${secsLeft} segundos para volver a intentar.`,
+      confirmButtonColor: '#002b49'
+    });
+  }
+
+  // Si ya pasó el tiempo de bloqueo, reiniciamos contador
+  if (state.lockUntil && now >= state.lockUntil) {
+    saveLoginLockState({ attempts: 0, lockUntil: 0 });
+  }
+
+  await _origLoginUserSubmit(e);
+
+  // Si tras ejecutar el login NO se inició sesión (currentUser sigue null), sumamos intento fallido
+  if (!currentUser) {
+    const updated = getLoginLockState();
+    updated.attempts = (updated.attempts || 0) + 1;
+
+    if (updated.attempts >= MAX_LOGIN_ATTEMPTS) {
+      updated.lockUntil = Date.now() + LOGIN_LOCK_SECONDS * 1000;
+      saveLoginLockState(updated);
+      return Swal.fire({
+        icon: 'error',
+        title: 'Acceso Bloqueado Temporalmente',
+        text: `Superaste los ${MAX_LOGIN_ATTEMPTS} intentos permitidos. Intenta de nuevo en ${LOGIN_LOCK_SECONDS} segundos.`,
+        confirmButtonColor: '#002b49'
+      });
+    } else {
+      saveLoginLockState(updated);
+      const remaining = MAX_LOGIN_ATTEMPTS - updated.attempts;
+      Swal.fire({
+        icon: 'error',
+        title: 'Credenciales Incorrectas',
+        text: `Verifica tu correo institucional y contraseña. Te quedan ${remaining} intento(s).`,
+        confirmButtonColor: '#002b49'
+      });
+    }
+  } else {
+    // Login exitoso: limpiar intentos
+    saveLoginLockState({ attempts: 0, lockUntil: 0 });
+  }
+};
+
+const _origRegisterUserSubmit = registerUserSubmit;
+registerUserSubmit = async function (e) {
+  if (e) e.preventDefault();
+
+  const name = (document.getElementById('regName')?.value || '').trim();
+  const password = document.getElementById('regPassword')?.value || '';
+
+  if (name.length < 3 || !name.includes(' ')) {
+    return Swal.fire({
+      icon: 'warning',
+      title: 'Nombre Completo Requerido',
+      text: 'Ingresa tu nombre y apellido completos.',
+      confirmButtonColor: '#002b49'
+    });
+  }
+
+  if (password.length < 8) {
+    return Swal.fire({
+      icon: 'warning',
+      title: 'Contraseña Muy Corta',
+      text: 'La contraseña debe tener al menos 8 caracteres.',
+      confirmButtonColor: '#002b49'
+    });
+  }
+
+  return _origRegisterUserSubmit(e);
+};
