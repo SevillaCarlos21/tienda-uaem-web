@@ -1541,3 +1541,121 @@ body.is-admin-user #navCarrito,
 body.is-admin-user #btnNavMyProducts {
   display: none !important;
 }
+
+
+/* ==========================================
+   NAVBAR RESPONSIVA PARA MÓVIL (UAEM STORE)
+   ========================================== */
+@media (max-width: 768px) {
+  header .navbar {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 10px !important;
+    padding: 10px 12px !important;
+    overflow: visible !important;
+  }
+
+  /* 1. Marca arriba a la izquierda */
+  header .navbar .brand {
+    order: 1 !important;
+    flex: 0 1 auto !important;
+    min-width: 0 !important;
+    gap: 8px !important;
+  }
+
+  header .navbar .brand img {
+    width: 34px !important;
+    height: 34px !important;
+    flex-shrink: 0 !important;
+  }
+
+  header .navbar .brand-title {
+    font-size: 1.05rem !important;
+    white-space: nowrap !important;
+  }
+
+  /* 2. Contenedor de acciones con display:contents para repartir usuario y botones */
+  header .navbar .nav-actions {
+    display: contents !important;
+  }
+
+  /* 3. Píldora de usuario arriba a la derecha */
+  header .navbar .user-menu-wrapper {
+    order: 2 !important;
+    margin-left: auto !important;
+    max-width: 54% !important;
+  }
+
+  header .navbar .user-pill-btn {
+    padding: 4px 10px !important;
+    gap: 6px !important;
+    max-width: 100% !important;
+  }
+
+  header .navbar .user-pill-btn .avatar {
+    width: 30px !important;
+    height: 30px !important;
+    font-size: 0.75rem !important;
+    flex-shrink: 0 !important;
+  }
+
+  header .navbar .user-pill-btn .user-info {
+    min-width: 0 !important;
+    overflow: hidden !important;
+  }
+
+  header .navbar .user-pill-btn .user-name {
+    font-size: 0.78rem !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    display: block !important;
+  }
+
+  /* En móvil ocultamos el subtítulo de rol para que no ensanche la píldora */
+  header .navbar .user-pill-btn .user-role {
+    display: none !important;
+  }
+
+  /* 4. Botones de navegación en una segunda fila ordenada */
+  header .navbar .nav-actions > a.nav-btn,
+  header .navbar .nav-actions > button.nav-btn {
+    order: 3 !important;
+    flex: 1 1 auto !important;
+    justify-content: center !important;
+    align-items: center !important;
+    padding: 8px 10px !important;
+    font-size: 0.8rem !important;
+    min-height: 40px !important;
+    white-space: nowrap !important;
+    margin: 0 !important;
+  }
+
+  /* Que el menú desplegable del usuario no se salga de la pantalla en móvil */
+  header .navbar .user-dropdown {
+    right: 0 !important;
+    left: auto !important;
+    min-width: 240px !important;
+    max-width: 92vw !important;
+    z-index: 9999 !important;
+  }
+}
+
+/* Ajuste extra para pantallas muy angostas (360px - 390px) */
+@media (max-width: 420px) {
+  header .navbar .brand-title {
+    font-size: 0.95rem !important;
+  }
+
+  header .navbar .user-menu-wrapper {
+    max-width: 48% !important;
+  }
+
+  header .navbar .nav-actions > a.nav-btn,
+  header .navbar .nav-actions > button.nav-btn {
+    font-size: 0.75rem !important;
+    padding: 7px 8px !important;
+  }
+}
