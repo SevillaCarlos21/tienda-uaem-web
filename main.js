@@ -798,7 +798,7 @@ async function checkout() {
     speakText('Selecciona método de pago. ¿Cómo deseas realizar el pago al vendedor en campus? Efectivo o Transferencia Electrónica.');
   }
 
-  Swal.fire({
+  const result = await Swal.fire({
     title: 'Selecciona Método de Pago',
     customClass: {
       popup: 'uaem-pay-popup'
@@ -833,77 +833,77 @@ async function checkout() {
       const selected = document.querySelector('input[name="payMethod"]:checked');
       return selected ? selected.value : 'Efectivo';
     }
-  }).then(async (result) => {
-    if (result.isConfirmed) {
-      const selectedMethod = result.value;
-      const now = new Date();
-      const dateStr = now.toLocaleDateString('es-MX') + ' ' + now.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
-
-      for (const cartItem of cart) {
-        const prod = products.find(p => p.id === cartItem.id);
-        if (prod) {
-          const newStock = Math.max(0, prod.stock - cartItem.qty);
-          await supabaseClient.from('productos').update({ stock: newStock }).eq('id', cartItem.id);
-        }
-
-        // Resolver correo del vendedor desde el item del carrito o desde la lista de productos
-        const targetSellerEmail = (
-          cartItem.sellerEmail ||
-          cartItem.seller_email ||
-          (prod && (prod.sellerEmail || prod.seller_email)) ||
-          ''
-        ).toLowerCase().trim();
-
-        if (targetSellerEmail && supabaseClient) {
-          const subtotal = Number(cartItem.price || 0) * Number(cartItem.qty || 1);
-          const { error: notifError } = await supabaseClient
-            .from('notificaciones')
-            .insert([{
-              usuario_email: targetSellerEmail,
-              titulo: '¡Producto vendido!',
-              mensaje: `${currentUser.name || currentUser.email} compró ${cartItem.qty} ${cartItem.qty === 1 ? 'unidad' : 'unidades'} de "${cartItem.name}" ($${subtotal.toFixed(2)} MXN) — Pago: ${selectedMethod}.`,
-              tipo: 'success',
-              leida: false
-            }]);
-
-          if (notifError) {
-            console.error('Error insertando notificación en Supabase:', notifError);
-          }
-        }
-
-        salesHistory.unshift({
-          id: Date.now() + Math.random(),
-          date: dateStr,
-          seller: cartItem.seller,
-          sellerFaculty: cartItem.faculty,
-          sellerEmail: targetSellerEmail,
-          buyer: currentUser.name,
-          buyerFaculty: currentUser.faculty,
-          buyerEmail: currentUser.email,
-          productName: cartItem.name,
-          qty: cartItem.qty,
-          schedule: cartItem.schedule,
-          deliveryPoint: cartItem.deliveryPoint || `Botón de Pánico - ${cartItem.faculty}`,
-          paymentMethod: selectedMethod,
-          total: cartItem.price * cartItem.qty
-        });
-      }
-
-      localStorage.setItem('uaem_sales_history', JSON.stringify(salesHistory));
-      cart = [];
-      localStorage.setItem('uaem_cart', JSON.stringify(cart));
-
-      await fetchProductsFromSupabase();
-      Swal.fire({
-        icon: 'success',
-        title: '¡Pedido Confirmado!',
-        text: `Pago registrado mediante: ${selectedMethod}. Stock actualizado en Supabase.`,
-        confirmButtonColor: '#002b49'
-      }).then(() => {
-        window.location.href = 'mis-compras.html';
-      });
-    }
   });
+
+  if (!result.isConfirmed) return;
+
+  const selectedMethod = result.value;
+  const now = new Date();
+  const dateStr = now.toLocaleDateString('es-MX') + ' ' + now.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
+
+  for (const cartItem of cart) {
+    const prod = products.find(p => p.id === cartItem.id);
+    if (prod) {
+      const newStock = Math.max(0, prod.stock - cartItem.qty);
+      await supabaseClient.from('productos').update({ stock: newStock }).eq('id', cartItem.id);
+    }
+
+    const targetSellerEmail = (
+      cartItem.sellerEmail ||
+      cartItem.seller_email ||
+      (prod && (prod.sellerEmail || prod.seller_email)) ||
+      ''
+    ).toLowerCase().trim();
+
+    if (targetSellerEmail && supabaseClient) {
+      const subtotal = Number(cartItem.price || 0) * Number(cartItem.qty || 1);
+      const { error: notifError } = await supabaseClient
+        .from('notificaciones')
+        .insert([{
+          usuario_email: targetSellerEmail,
+          titulo: '¡Producto vendido!',
+          mensaje: `${currentUser.name || currentUser.email} compró ${cartItem.qty} ${cartItem.qty === 1 ? 'unidad' : 'unidades'} de "${cartItem.name}" ($${subtotal.toFixed(2)} MXN) — Pago: ${selectedMethod}.`,
+          tipo: 'success',
+          leida: false
+        }]);
+
+      if (notifError) {
+        console.error('Error insertando notificación en Supabase:', notifError);
+      }
+    }
+
+    salesHistory.unshift({
+      id: Date.now() + Math.random(),
+      date: dateStr,
+      seller: cartItem.seller,
+      sellerFaculty: cartItem.faculty,
+      sellerEmail: targetSellerEmail,
+      buyer: currentUser.name,
+      buyerFaculty: currentUser.faculty,
+      buyerEmail: currentUser.email,
+      productName: cartItem.name,
+      qty: cartItem.qty,
+      schedule: cartItem.schedule,
+      deliveryPoint: cartItem.deliveryPoint || `Botón de Pánico - ${cartItem.faculty}`,
+      paymentMethod: selectedMethod,
+      total: cartItem.price * cartItem.qty
+    });
+  }
+
+  localStorage.setItem('uaem_sales_history', JSON.stringify(salesHistory));
+  cart = [];
+  localStorage.setItem('uaem_cart', JSON.stringify(cart));
+
+  await fetchProductsFromSupabase();
+  await Swal.fire({
+    icon: 'success',
+    title: '¡Pedido Confirmado!',
+    text: `Pago registrado mediante: ${selectedMethod}. Stock actualizado en Supabase.`,
+    confirmButtonColor: '#002b49'
+  });
+
+  window.location.href = 'mis-compras.html';
+}
 
 function renderMyPurchases() {
   const tbody = document.getElementById('myPurchasesTableBody');
