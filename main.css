@@ -1660,8 +1660,9 @@ body.is-admin-user #btnNavMyProducts {
   }
 }
 
+
 /* ==========================================
-   BOTÓN DE ACCESIBILIDAD COMPACTO EN MÓVIL
+   BOTÓN DE ACCESIBILIDAD MINI EN MÓVIL
    ========================================== */
 @media (max-width: 768px) {
   #accessibilityToggle,
@@ -1674,31 +1675,29 @@ body.is-admin-user #btnNavMyProducts {
   .floating-accessibility-btn,
   [id*="accessibility"] > button,
   [class*="accessibility"] > button {
-    width: 46px !important;
-    height: 46px !important;
-    min-width: 46px !important;
-    min-height: 46px !important;
-    font-size: 1.1rem !important;
-    right: 12px !important;
-    bottom: 12px !important;
-    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.25) !important;
+    width: 38px !important;
+    height: 38px !important;
+    min-width: 38px !important;
+    min-height: 38px !important;
+    font-size: 0.95rem !important;
+    right: 10px !important;
+    bottom: 10px !important;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25) !important;
   }
 
-  /* Si el botón está dentro de un contenedor fijo */
   #accessibilityWidget,
   #accessibilityWrapper,
   .accessibility-widget,
   .accessibility-wrapper,
   .floating-accessibility {
-    right: 12px !important;
-    bottom: 12px !important;
-    transform: scale(0.82);
-    transform-origin: bottom right;
+    right: 10px !important;
+    bottom: 10px !important;
+    transform: scale(0.65) !important;
+    transform-origin: bottom right !important;
   }
 
-  /* Evitar que los modales queden pegados al borde inferior derecho */
   .swal2-popup,
   .modal-content {
-    margin-bottom: 56px !important;
+    margin-bottom: 52px !important;
   }
 }
