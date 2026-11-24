@@ -1712,3 +1712,82 @@ body.is-admin-user #btnNavMyProducts {
     margin-bottom: 52px !important;
   }
 }
+
+/* ==========================================
+   ACOMODO LIMPIO DE BOTONES EN MÓVIL
+   ========================================== */
+@media (max-width: 768px) {
+  header .navbar {
+    display: flex !important;
+    flex-direction: column !important;
+    flex-wrap: nowrap !important;
+    align-items: stretch !important;
+    gap: 10px !important;
+    padding: 10px 12px !important;
+  }
+
+  /* Fila 1: Logo a la izquierda y píldora de usuario a la derecha */
+  header .navbar > .brand {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    gap: 8px !important;
+    width: 100% !important;
+  }
+
+  /* Contenedor de botones y usuario */
+  header .navbar > .nav-actions {
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: wrap !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    gap: 8px !important;
+    width: 100% !important;
+    flex: none !important;
+  }
+
+  /* Píldora de usuario en su propia línea o ancho completo limpio */
+  header .navbar .user-menu-wrapper {
+    order: -1 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  header .navbar .user-pill-btn {
+    width: 100% !important;
+    max-width: 100% !important;
+    justify-content: space-between !important;
+    height: auto !important;
+    min-height: 42px !important;
+    padding: 6px 12px !important;
+  }
+
+  header .navbar .user-name,
+  header .navbar .user-role {
+    max-width: none !important;
+  }
+
+  /* Botones de navegación repartidos parejo sin partir texto */
+  header .navbar .nav-actions > a.nav-btn,
+  header .navbar .nav-actions > button.nav-btn {
+    flex: 1 1 calc(50% - 4px) !important;
+    width: auto !important;
+    min-width: 120px !important;
+    height: auto !important;
+    min-height: 38px !important;
+    padding: 8px 10px !important;
+    font-size: 0.82rem !important;
+    line-height: 1.2 !important;
+    justify-content: center !important;
+    white-space: nowrap !important;
+  }
+
+  /* Si solo queda 1 botón visible (como Catálogo en admin), que no se vea tosco */
+  header .navbar .nav-actions > a.nav-btn:only-of-type,
+  header .navbar .nav-actions > button.nav-btn:only-of-type {
+    flex: 0 1 auto !important;
+    min-width: 150px !important;
+    margin: 0 auto !important;
+  }
+}
