@@ -1529,3 +1529,15 @@ body.high-contrast-light .table-header h2,
 body.high-contrast-light main > h2 {
   color: #000000 !important;
 }
+
+/* ==========================================
+   OCULTAR BOTONES DE CLIENTE EN MODO ADMIN
+   ========================================== */
+body.is-admin-user header .nav-actions a[href="mis-compras.html"],
+body.is-admin-user header .nav-actions a[href="mis-productos.html"],
+body.is-admin-user header .nav-actions a[href="carrito.html"],
+body.is-admin-user #navMisCompras,
+body.is-admin-user #navCarrito,
+body.is-admin-user #btnNavMyProducts {
+  display: none !important;
+}

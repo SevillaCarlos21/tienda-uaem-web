@@ -2139,3 +2139,32 @@ registerUserSubmit = async function (e) {
 
   return _origRegisterUserSubmit(e);
 };
+
+function enforceAdminNavbarState() {
+  const isAdmin = Boolean(
+    currentUser &&
+    (currentUser.email === 'admin@sistema.uaem' || currentUser.role?.includes('Administrador'))
+  );
+  document.body.classList.toggle('is-admin-user', isAdmin);
+  if (!isAdmin) return;
+
+  const hiddenSelectors = [
+    '#navMisCompras',
+    '#navCarrito',
+    '#btnNavMyProducts',
+    'header .nav-actions a[href="mis-compras.html"]',
+    'header .nav-actions a[href="mis-productos.html"]',
+    'header .nav-actions a[href="carrito.html"]'
+  ];
+
+  hiddenSelectors.forEach((sel) => {
+    document.querySelectorAll(sel).forEach((el) => {
+      el.style.setProperty('display', 'none', 'important');
+    });
+  });
+}
+
+window.addEventListener('DOMContentLoaded', () => {
+  enforceAdminNavbarState();
+  setTimeout(enforceAdminNavbarState, 120);
+});
