@@ -291,21 +291,21 @@ footer { background: var(--uaem-blue-dark); color: white; text-align: center; pa
 /* ACCESIBILIDAD FLOTANTE */
 .btn-accessibility-floating {
   position: fixed !important;
-  bottom: 20px !important;
-  right: 20px !important;
-  width: 64px !important;
-  height: 64px !important;
-  min-width: 64px !important;
-  min-height: 64px !important;
+  bottom: 22px !important;
+  right: 22px !important;
+  width: 100px !important;
+  height: 100px !important;
+  min-width: 100px !important;
+  min-height: 100px !important;
   border-radius: 50% !important;
   background: var(--uaem-blue-main) !important;
   color: var(--uaem-gold) !important;
-  border: 4px solid var(--uaem-gold) !important;
-  font-size: 1.85rem !important;
+  border: 5px solid var(--uaem-gold) !important;
+  font-size: 2.9rem !important;
   cursor: pointer !important;
   z-index: 2147483647 !important;
   pointer-events: auto !important;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35), 0 0 14px rgba(212, 175, 55, 0.45) !important;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.45), 0 0 20px rgba(212, 175, 55, 0.55) !important;
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
@@ -314,9 +314,9 @@ footer { background: var(--uaem-blue-dark); color: white; text-align: center; pa
 
 .btn-accessibility-floating i,
 .btn-accessibility-floating svg {
-  font-size: 1.85rem !important;
-  width: 30px !important;
-  height: 30px !important;
+  font-size: 2.9rem !important;
+  width: 44px !important;
+  height: 44px !important;
 }
 
 .btn-accessibility-floating:hover {
