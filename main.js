@@ -2168,3 +2168,94 @@ window.addEventListener('DOMContentLoaded', () => {
   enforceAdminNavbarState();
   setTimeout(enforceAdminNavbarState, 120);
 });
+
+
+// ==========================================
+// NOTIFICACIÓN AL VENDEDOR AL CONCRETAR VENTA
+// ==========================================
+async function notifySellerOfSale({
+  sellerEmail,
+  buyerName,
+  buyerEmail,
+  productName,
+  quantity,
+  paymentMethod,
+  subtotal
+}) {
+  if (!sellerEmail || !supabaseClient) return;
+
+  const cleanSeller = sellerEmail.toLowerCase().trim();
+  const cleanBuyer = buyerName || buyerEmail || 'Comprador UAEM';
+  const payLabel = paymentMethod === 'Transferencia' || paymentMethod === 'transfer'
+    ? 'Transferencia Electrónica'
+    : 'Efectivo';
+
+  const title = '¡Producto vendido!';
+  const message = `${cleanBuyer} compró ${quantity} ${quantity === 1 ? 'unidad' : 'unidades'} de "${productName}" ($${Number(subtotal || 0).toFixed(2)} MXN) — Método de pago: ${payLabel}.`;
+
+  try {
+    await createSupabaseNotification(cleanSeller, title, message, 'success');
+  } catch (err) {
+    console.warn('No se pudo enviar la notificación de venta al vendedor:', err);
+  }
+}
+
+const _origCheckout = checkout;
+checkout = async function () {
+  const snapshotCart = Array.isArray(cart) ? [...cart] : [];
+  const snapshotBuyer = currentUser
+    ? {
+        name: currentUser.name || currentUser.nombre || currentUser.email || 'Comprador UAEM',
+        email: (currentUser.email || '').toLowerCase().trim()
+      }
+    : { name: 'Comprador UAEM', email: '' };
+
+  // Escuchamos una sola vez el SweetAlert de confirmación de pedido para saber qué método eligió
+  const origSwalFire = Swal.fire.bind(Swal);
+  let chosenPaymentMethod = null;
+
+  Swal.fire = function (...args) {
+    const firstArg = args[0];
+    if (firstArg && firstArg.title === 'Selecciona Método de Pago') {
+      const originalPreConfirm = firstArg.preConfirm;
+      firstArg.preConfirm = () => {
+        const val = typeof originalPreConfirm === 'function' ? originalPreConfirm() : 'Efectivo';
+        chosenPaymentMethod = val;
+        return val;
+      };
+    }
+    return origSwalFire(...args);
+  };
+
+  try {
+    await _origCheckout();
+  } finally {
+    Swal.fire = origSwalFire;
+  }
+
+  // Si el carrito quedó vacío tras _origCheckout(), significa que el pedido se confirmó
+  const orderCompleted = Array.isArray(cart) && cart.length === 0 && snapshotCart.length > 0;
+  if (!orderCompleted) return;
+
+  const paymentMethodUsed = chosenPaymentMethod || 'Efectivo';
+
+  for (const item of snapshotCart) {
+    const sellerEmail = (item.sellerEmail || item.seller_email || '').toLowerCase().trim();
+    if (!sellerEmail || sellerEmail === snapshotBuyer.email) continue;
+
+    const qty = Number(item.qty || item.quantity || 1);
+    const price = Number(item.price ?? item.precio ?? 0);
+    const subtotal = qty * price;
+    const productName = item.name || item.nombre || 'Producto UAEM';
+
+    await notifySellerOfSale({
+      sellerEmail,
+      buyerName: snapshotBuyer.name,
+      buyerEmail: snapshotBuyer.email,
+      productName,
+      quantity: qty,
+      paymentMethod: paymentMethodUsed,
+      subtotal
+    });
+  }
+};
