@@ -466,10 +466,38 @@ function fixAdminMobileRow() {
     currentUser &&
     (currentUser.email === 'admin@sistema.uaem' || currentUser.role?.includes('Administrador'))
   );
-  if (!isAdmin || window.innerWidth > 768) return;
+  const existingRow = document.getElementById('adminMobileBtnRow');
 
+  if (!isAdmin || window.innerWidth > 768) {
+    if (existingRow) {
+      Array.from(existingRow.children).forEach((btn) => {
+        const navActions = document.querySelector('header .navbar .nav-actions');
+        if (navActions) navActions.appendChild(btn);
+      });
+      existingRow.remove();
+    }
+    return;
+  }
+
+  // Ocultar siempre botones de cliente para el administrador
+  const clientSelectors = [
+    '#navMisCompras',
+    '#navCarrito',
+    '#btnNavMyProducts',
+    'header .nav-actions a[href="mis-compras.html"]',
+    'header .nav-actions a[href="mis-productos.html"]',
+    'header .nav-actions a[href="carrito.html"]',
+    'header .nav-actions button[onclick*="openAddModal"]'
+  ];
+  clientSelectors.forEach((sel) => {
+    document.querySelectorAll(sel).forEach((el) => {
+      el.style.setProperty('display', 'none', 'important');
+    });
+  });
+
+  const navbar = document.querySelector('header .navbar');
   const navActions = document.querySelector('header .navbar .nav-actions');
-  if (!navActions) return;
+  if (!navbar || !navActions) return;
 
   let row = document.getElementById('adminMobileBtnRow');
   if (!row) {
@@ -482,34 +510,58 @@ function fixAdminMobileRow() {
       'display: flex',
       'flex-direction: row',
       'gap: 8px',
-      'margin-top: 4px'
+      'margin-top: 2px'
     ].join('; ');
-    navActions.parentNode.insertBefore(row, navActions.nextSibling);
+    navActions.insertAdjacentElement('afterend', row);
   }
 
-  const btns = Array.from(navActions.querySelectorAll('a.nav-btn, button.nav-btn, #btnNavAdmin')).filter(
-    (el) => window.getComputedStyle(el).display !== 'none'
+  // Tomar únicamente los enlaces/botones permitidos para admin (Catálogo y Panel Admin)
+  const allowedAdminBtns = Array.from(
+    document.querySelectorAll(
+      'header a[href="index.html"].nav-btn, header a[href="admin.html"].nav-btn, header #btnNavAdmin'
+    )
   );
 
-  btns.forEach((btn) => {
+  // Evitar duplicados si existen dos referencias
+  const uniqueBtns = [];
+  const seenHrefs = new Set();
+  allowedAdminBtns.forEach((btn) => {
+    const href = (btn.getAttribute('href') || '').trim();
+    if (!seenHrefs.has(href)) {
+      seenHrefs.add(href);
+      uniqueBtns.push(btn);
+    } else {
+      btn.remove();
+    }
+  });
+
+  uniqueBtns.forEach((btn) => {
     btn.style.setProperty('flex', '1 1 0', 'important');
     btn.style.setProperty('width', '50%', 'important');
     btn.style.setProperty('max-width', '50%', 'important');
     btn.style.setProperty('height', '38px', 'important');
     btn.style.setProperty('min-height', '38px', 'important');
+    btn.style.setProperty('max-height', '38px', 'important');
     btn.style.setProperty('padding', '0 8px', 'important');
     btn.style.setProperty('font-size', '0.8rem', 'important');
     btn.style.setProperty('line-height', '1', 'important');
     btn.style.setProperty('white-space', 'nowrap', 'important');
     btn.style.setProperty('display', 'inline-flex', 'important');
+    btn.style.setProperty('flex-direction', 'row', 'important');
     btn.style.setProperty('align-items', 'center', 'important');
     btn.style.setProperty('justify-content', 'center', 'important');
     btn.style.setProperty('gap', '6px', 'important');
+    btn.style.setProperty('margin', '0', 'important');
     if (btn.parentNode !== row) {
       row.appendChild(btn);
     }
   });
 }
+
+window.addEventListener('DOMContentLoaded', () => {
+  setTimeout(fixAdminMobileRow, 120);
+});
+window.addEventListener('resize', fixAdminMobileRow);
 
 window.addEventListener('DOMContentLoaded', () => {
   setTimeout(fixAdminMobileRow, 150);
