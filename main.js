@@ -2419,3 +2419,82 @@ async function notifySellerOfSale({
     if (!document.hidden) syncNotificationsFallback();
   });
 })();
+
+
+function normalizeMobileAdminHeader() {
+  const isAdmin = Boolean(
+    currentUser &&
+    (currentUser.email === 'admin@sistema.uaem' || currentUser.role?.includes('Administrador'))
+  );
+  const navbar = document.querySelector('header .navbar');
+  const brand = document.querySelector('header .navbar > .brand');
+  const userMenu = document.querySelector('header .navbar .user-menu-wrapper');
+  const navActions = document.querySelector('header .navbar > .nav-actions');
+
+  if (!navbar || !navActions) return;
+
+  if (!isAdmin || window.innerWidth > 768) {
+    navbar.style.removeProperty('flex-wrap');
+    navActions.style.removeProperty('display');
+    navActions.style.removeProperty('order');
+    navActions.style.removeProperty('width');
+    navActions.style.removeProperty('gap');
+    return;
+  }
+
+  // Fila 1: Marca (izq) + Usuario (der)
+  navbar.style.setProperty('display', 'flex', 'important');
+  navbar.style.setProperty('flex-direction', 'row', 'important');
+  navbar.style.setProperty('flex-wrap', 'wrap', 'important');
+  navbar.style.setProperty('align-items', 'center', 'important');
+  navbar.style.setProperty('justify-content', 'space-between', 'important');
+  navbar.style.setProperty('gap', '8px', 'important');
+
+  if (brand) {
+    brand.style.setProperty('order', '1', 'important');
+    brand.style.setProperty('flex', '0 1 auto', 'important');
+  }
+
+  if (userMenu) {
+    userMenu.style.setProperty('order', '2', 'important');
+    userMenu.style.setProperty('flex', '0 1 auto', 'important');
+    userMenu.style.setProperty('max-width', '54%', 'important');
+    userMenu.style.setProperty('margin-left', 'auto', 'important');
+  }
+
+  // Fila 2: Contenedor de botones a todo el ancho, 50% / 50% en una línea
+  navActions.style.setProperty('order', '3', 'important');
+  navActions.style.setProperty('display', 'flex', 'important');
+  navActions.style.setProperty('flex-direction', 'row', 'important');
+  navActions.style.setProperty('flex-wrap', 'nowrap', 'important');
+  navActions.style.setProperty('width', '100%', 'important');
+  navActions.style.setProperty('flex', '0 0 100%', 'important');
+  navActions.style.setProperty('gap', '8px', 'important');
+
+  const visibleButtons = Array.from(navActions.children).filter((el) => {
+    if (el === userMenu) return false;
+    const style = window.getComputedStyle(el);
+    return style.display !== 'none';
+  });
+
+  visibleButtons.forEach((btn) => {
+    btn.style.setProperty('flex', '1 1 0', 'important');
+    btn.style.setProperty('width', '50%', 'important');
+    btn.style.setProperty('max-width', '50%', 'important');
+    btn.style.setProperty('height', '40px', 'important');
+    btn.style.setProperty('min-height', '40px', 'important');
+    btn.style.setProperty('padding', '0 10px', 'important');
+    btn.style.setProperty('font-size', '0.82rem', 'important');
+    btn.style.setProperty('line-height', '1', 'important');
+    btn.style.setProperty('white-space', 'nowrap', 'important');
+    btn.style.setProperty('display', 'inline-flex', 'important');
+    btn.style.setProperty('align-items', 'center', 'important');
+    btn.style.setProperty('justify-content', 'center', 'important');
+  });
+}
+
+window.addEventListener('DOMContentLoaded', () => {
+  normalizeMobileAdminHeader();
+  setTimeout(normalizeMobileAdminHeader, 200);
+});
+window.addEventListener('resize', normalizeMobileAdminHeader);
