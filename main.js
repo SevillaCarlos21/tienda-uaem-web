@@ -846,12 +846,37 @@ async function checkout() {
           await supabaseClient.from('productos').update({ stock: newStock }).eq('id', cartItem.id);
         }
 
+        // Resolver correo del vendedor desde el item del carrito o desde la lista de productos
+        const targetSellerEmail = (
+          cartItem.sellerEmail ||
+          cartItem.seller_email ||
+          (prod && (prod.sellerEmail || prod.seller_email)) ||
+          ''
+        ).toLowerCase().trim();
+
+        if (targetSellerEmail && supabaseClient) {
+          const subtotal = Number(cartItem.price || 0) * Number(cartItem.qty || 1);
+          const { error: notifError } = await supabaseClient
+            .from('notificaciones')
+            .insert([{
+              usuario_email: targetSellerEmail,
+              titulo: '¡Producto vendido!',
+              mensaje: `${currentUser.name || currentUser.email} compró ${cartItem.qty} ${cartItem.qty === 1 ? 'unidad' : 'unidades'} de "${cartItem.name}" ($${subtotal.toFixed(2)} MXN) — Pago: ${selectedMethod}.`,
+              tipo: 'success',
+              leida: false
+            }]);
+
+          if (notifError) {
+            console.error('Error insertando notificación en Supabase:', notifError);
+          }
+        }
+
         salesHistory.unshift({
           id: Date.now() + Math.random(),
           date: dateStr,
           seller: cartItem.seller,
           sellerFaculty: cartItem.faculty,
-          sellerEmail: cartItem.sellerEmail,
+          sellerEmail: targetSellerEmail,
           buyer: currentUser.name,
           buyerFaculty: currentUser.faculty,
           buyerEmail: currentUser.email,
@@ -879,7 +904,6 @@ async function checkout() {
       });
     }
   });
-}
 
 function renderMyPurchases() {
   const tbody = document.getElementById('myPurchasesTableBody');
