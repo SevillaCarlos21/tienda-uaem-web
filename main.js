@@ -497,7 +497,35 @@ function fixAdminMobileRow() {
 
   const navbar = document.querySelector('header .navbar');
   const navActions = document.querySelector('header .navbar .nav-actions');
+  const brand = document.querySelector('header .navbar > .brand');
+  const userMenu = document.querySelector('header .navbar .user-menu-wrapper');
+  const userPillBtn = document.querySelector('header .navbar .user-pill-btn');
   if (!navbar || !navActions) return;
+
+  // Alinear marca y botón/píldora del administrador a la misma altura en la fila 1
+  navbar.style.setProperty('align-items', 'center', 'important');
+
+  if (brand) {
+    brand.style.setProperty('display', 'inline-flex', 'important');
+    brand.style.setProperty('align-items', 'center', 'important');
+    brand.style.setProperty('height', '42px', 'important');
+    brand.style.setProperty('margin', '0', 'important');
+  }
+
+  if (userMenu) {
+    userMenu.style.setProperty('display', 'inline-flex', 'important');
+    userMenu.style.setProperty('align-items', 'center', 'important');
+    userMenu.style.setProperty('height', '42px', 'important');
+    userMenu.style.setProperty('margin', '0 0 0 auto', 'important');
+  }
+
+  if (userPillBtn) {
+    userPillBtn.style.setProperty('height', '42px', 'important');
+    userPillBtn.style.setProperty('min-height', '42px', 'important');
+    userPillBtn.style.setProperty('display', 'inline-flex', 'important');
+    userPillBtn.style.setProperty('align-items', 'center', 'important');
+    userPillBtn.style.setProperty('margin', '0', 'important');
+  }
 
   let row = document.getElementById('adminMobileBtnRow');
   if (!row) {
