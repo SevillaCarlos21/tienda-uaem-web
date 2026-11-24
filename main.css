@@ -452,21 +452,21 @@ footer { background: var(--uaem-blue-dark); color: white; text-align: center; pa
   }
 
   .btn-accessibility-floating {
-    width: 50px !important;
-    height: 50px !important;
-    min-width: 50px !important;
-    min-height: 50px !important;
-    font-size: 1.4rem !important;
-    border-width: 3px !important;
+    width: 70px !important;
+    height: 70px !important;
+    min-width: 70px !important;
+    min-height: 70px !important;
+    font-size: 2.1rem !important;
+    border-width: 4px !important;
     bottom: 14px !important;
     right: 14px !important;
   }
 
   .btn-accessibility-floating i,
   .btn-accessibility-floating svg {
-    font-size: 1.4rem !important;
-    width: 22px !important;
-    height: 22px !important;
+    font-size: 2.1rem !important;
+    width: 32px !important;
+    height: 32px !important;
   }
 }
 
