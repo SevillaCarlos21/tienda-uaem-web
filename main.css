@@ -1731,11 +1731,14 @@ body.is-admin-user #btnNavMyProducts {
 /* ==========================================
    HEADER MÓVIL IDÉNTICO EN INDEX Y ADMIN
    ========================================== */
+/* ==========================================
+   HEADER MÓVIL IDÉNTICO EN INDEX Y ADMIN
+   ========================================== */
 @media (max-width: 768px) {
   header .navbar {
     display: flex !important;
     flex-direction: row !important;
-    flex-wrap: nowrap !important;
+    flex-wrap: wrap !important;
     align-items: center !important;
     justify-content: space-between !important;
     gap: 8px !important;
@@ -1762,7 +1765,7 @@ body.is-admin-user #btnNavMyProducts {
     white-space: nowrap !important;
   }
 
-  /* Desempaqueta nav-actions para alinear píldora y botones en el mismo contenedor flex */
+  /* Desempaqueta nav-actions para que usuario y botones participen del mismo wrap */
   header .navbar > .nav-actions {
     display: contents !important;
   }
@@ -1811,7 +1814,7 @@ body.is-admin-user #btnNavMyProducts {
   header .navbar .nav-actions > a[href="admin.html"],
   header .navbar .nav-actions > a[href="index.html"] {
     order: 3 !important;
-    flex: 1 1 calc(50% - 4px) !important;
+    flex: 0 0 calc(50% - 4px) !important;
     width: calc(50% - 4px) !important;
     max-width: calc(50% - 4px) !important;
     min-width: 0 !important;
