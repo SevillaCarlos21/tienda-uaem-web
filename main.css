@@ -450,15 +450,26 @@ footer { background: var(--uaem-blue-dark); color: white; text-align: center; pa
     grid-template-columns: repeat(2, 1fr);
     gap: 8px;
   }
+
+  .btn-accessibility-floating {
+    width: 44px !important;
+    height: 44px !important;
+    min-width: 44px !important;
+    min-height: 44px !important;
+    font-size: 1.15rem !important;
+    border-width: 3px !important;
+    bottom: 12px !important;
+    right: 12px !important;
+  }
+
+  .btn-accessibility-floating i,
+  .btn-accessibility-floating svg {
+    font-size: 1.15rem !important;
+    width: 20px !important;
+    height: 20px !important;
+  }
 }
 
-.btn-accessibility-floating {
-    width: 110px !important;
-    height: 110px !important;
-    font-size: 3.8rem !important;
-    bottom: 20px !important;
-    right: 20px !important;
-}
 
 /* ==========================================
    POSICIONAMIENTO Y ESTILOS DEL MENÚ ADMIN (3 PUNTOS)
