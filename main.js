@@ -2760,3 +2760,252 @@ window.addEventListener('DOMContentLoaded', () => {
   setTimeout(normalizeMobileAdminHeader, 200);
 });
 window.addEventListener('resize', normalizeMobileAdminHeader);
+
+
+// ==========================================
+// SINCRONIZACIÓN DE CARRITO EN TIEMPO REAL (PC <-> MÓVIL)
+// ==========================================
+function mapCarritoRowToItem(row) {
+  const numericId = Number(row.producto_id);
+  return {
+    id: Number.isNaN(numericId) ? row.producto_id : numericId,
+    name: row.producto_nombre || 'Producto UAEM',
+    price: Number(row.precio || 0),
+    stock: Number(row.stock || 0),
+    qty: Number(row.cantidad || 1),
+    seller: row.vendedor_nombre || 'Vendedor UAEM',
+    sellerEmail: (row.vendedor_email || '').toLowerCase().trim(),
+    faculty: row.facultad || 'Comunidad UAEM',
+    schedule: row.horario || 'Matutino',
+    deliveryPoint: row.punto_entrega || 'Botón de Pánico - Campus UAEM',
+    image: row.imagen || 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?auto=format&fit=crop&w=600&q=80'
+  };
+}
+
+async function upsertCartItemToSupabase(item) {
+  if (!supabaseClient || !currentUser || !item) return;
+  const userEmail = (currentUser.email || '').toLowerCase().trim();
+  if (!userEmail) return;
+
+  const prodRef = Array.isArray(products) ? products.find(p => String(p.id) === String(item.id)) : null;
+
+  const { error } = await supabaseClient
+    .from('carrito_items')
+    .upsert([{
+      usuario_email: userEmail,
+      producto_id: String(item.id),
+      producto_nombre: item.name || (prodRef && prodRef.name) || 'Producto UAEM',
+      precio: Number(item.price ?? (prodRef && prodRef.price) ?? 0),
+      stock: Number(item.stock ?? (prodRef && prodRef.stock) ?? 0),
+      cantidad: Number(item.qty || 1),
+      vendedor_nombre: item.seller || (prodRef && prodRef.seller) || 'Vendedor UAEM',
+      vendedor_email: ((item.sellerEmail || item.seller_email || (prodRef && (prodRef.sellerEmail || prodRef.seller_email)) || '')).toLowerCase().trim(),
+      facultad: item.faculty || (prodRef && prodRef.faculty) || 'Comunidad UAEM',
+      horario: item.schedule || (prodRef && prodRef.schedule) || 'Matutino',
+      punto_entrega: item.deliveryPoint || (prodRef && prodRef.deliveryPoint) || 'Botón de Pánico - Campus UAEM',
+      imagen: item.image || (prodRef && prodRef.image) || '',
+      updated_at: new Date().toISOString()
+    }], { onConflict: 'usuario_email,producto_id' });
+
+  if (error) {
+    console.warn('Error guardando item en carrito_items:', error);
+  }
+}
+
+async function deleteCartItemFromSupabase(productId) {
+  if (!supabaseClient || !currentUser) return;
+  const userEmail = (currentUser.email || '').toLowerCase().trim();
+  if (!userEmail) return;
+
+  const { error } = await supabaseClient
+    .from('carrito_items')
+    .delete()
+    .eq('usuario_email', userEmail)
+    .eq('producto_id', String(productId));
+
+  if (error) {
+    console.warn('Error eliminando item de carrito_items:', error);
+  }
+}
+
+async function clearCartInSupabase() {
+  if (!supabaseClient || !currentUser) return;
+  const userEmail = (currentUser.email || '').toLowerCase().trim();
+  if (!userEmail) return;
+
+  const { error } = await supabaseClient
+    .from('carrito_items')
+    .delete()
+    .eq('usuario_email', userEmail);
+
+  if (error) {
+    console.warn('Error vaciando carrito_items:', error);
+  }
+}
+
+async function syncCartFromSupabase() {
+  if (!supabaseClient || !currentUser) return;
+  const userEmail = (currentUser.email || '').toLowerCase().trim();
+  if (!userEmail) return;
+
+  try {
+    const { data, error } = await supabaseClient
+      .from('carrito_items')
+      .select('*')
+      .eq('usuario_email', userEmail)
+      .order('updated_at', { ascending: true });
+
+    if (error || !Array.isArray(data)) return;
+
+    cart = data.map(mapCarritoRowToItem);
+    window.cart = cart;
+    localStorage.setItem('uaem_cart', JSON.stringify(cart));
+
+    if (typeof updateCartBadge === 'function') updateCartBadge();
+    if (document.getElementById('cartTableBody') && typeof renderCart === 'function') {
+      renderCart();
+    }
+  } catch (err) {
+    console.warn('Error sincronizando carrito desde Supabase:', err);
+  }
+}
+
+addToCart = function (productId) {
+  const product = products.find(p => String(p.id) === String(productId));
+  if (!product || product.suspendido || product.stock <= 0) {
+    return Swal.fire({
+      icon: 'error',
+      title: 'No Disponible',
+      text: 'Este artículo está agotado o suspendido.',
+      confirmButtonColor: '#002b49'
+    });
+  }
+
+  let targetItem = cart.find(item => String(item.id) === String(productId));
+  if (targetItem) {
+    if (targetItem.qty < product.stock) {
+      targetItem.qty++;
+    } else {
+      return Swal.fire({
+        icon: 'warning',
+        title: 'Límite Alcanzado',
+        text: 'No puedes agregar más unidades de las disponibles.',
+        confirmButtonColor: '#002b49'
+      });
+    }
+  } else {
+    targetItem = { ...product, qty: 1 };
+    cart.push(targetItem);
+  }
+
+  localStorage.setItem('uaem_cart', JSON.stringify(cart));
+  updateCartBadge();
+  upsertCartItemToSupabase(targetItem);
+
+  Swal.fire({
+    icon: 'success',
+    title: 'Añadido al Carrito',
+    text: `"${product.name}" se agregó al carrito.`,
+    timer: 1500,
+    showConfirmButton: false
+  });
+};
+
+changeCartQty = function (index, qty) {
+  const val = parseInt(qty, 10);
+  const item = cart[index];
+  if (!item) return;
+
+  if (val > 0) {
+    const maxStock = Number(item.stock || val);
+    item.qty = maxStock > 0 ? Math.min(val, maxStock) : val;
+    localStorage.setItem('uaem_cart', JSON.stringify(cart));
+    renderCart();
+    updateCartBadge();
+    upsertCartItemToSupabase(item);
+  } else {
+    removeCartItem(index);
+  }
+};
+
+removeCartItem = function (index) {
+  const removed = cart[index];
+  cart.splice(index, 1);
+  localStorage.setItem('uaem_cart', JSON.stringify(cart));
+  renderCart();
+  updateCartBadge();
+  if (removed) deleteCartItemFromSupabase(removed.id);
+};
+
+clearCart = function () {
+  if (cart.length === 0) return;
+  Swal.fire({
+    title: '¿Vaciar Carrito?',
+    text: 'Se eliminarán todos los productos.',
+    icon: 'question',
+    showCancelButton: true,
+    confirmButtonColor: '#d33',
+    cancelButtonColor: '#002b49',
+    confirmButtonText: 'Sí, vaciar',
+    cancelButtonText: 'Cancelar'
+  }).then(async (result) => {
+    if (result.isConfirmed) {
+      cart = [];
+      localStorage.setItem('uaem_cart', JSON.stringify(cart));
+      renderCart();
+      updateCartBadge();
+      await clearCartInSupabase();
+    }
+  });
+};
+
+const _origCheckoutForCartSync = checkout;
+checkout = async function (...args) {
+  const res = await _origCheckoutForCartSync.apply(this, args);
+  await clearCartInSupabase();
+  return res;
+};
+
+let carritoLiveChannel = null;
+
+function initCarritoRealtimeSync() {
+  if (!supabaseClient || !currentUser) return;
+  const myEmail = (currentUser.email || '').toLowerCase().trim();
+  if (!myEmail) return;
+
+  if (carritoLiveChannel) {
+    supabaseClient.removeChannel(carritoLiveChannel);
+    carritoLiveChannel = null;
+  }
+
+  const chName = `carrito-live-${myEmail.replace(/[^a-z0-9]/g, '_')}-${Date.now()}`;
+  carritoLiveChannel = supabaseClient
+    .channel(chName)
+    .on(
+      'postgres_changes',
+      { event: '*', schema: 'public', table: 'carrito_items' },
+      async (payload) => {
+        const row = payload.new || payload.old || {};
+        const targetEmail = (row.usuario_email || '').toLowerCase().trim();
+        if (targetEmail === myEmail) {
+          await syncCartFromSupabase();
+        }
+      }
+    )
+    .subscribe();
+
+  setInterval(() => {
+    if (!document.hidden) syncCartFromSupabase();
+  }, 6000);
+
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) syncCartFromSupabase();
+  });
+}
+
+window.addEventListener('DOMContentLoaded', () => {
+  setTimeout(() => {
+    syncCartFromSupabase();
+    initCarritoRealtimeSync();
+  }, 150);
+});
