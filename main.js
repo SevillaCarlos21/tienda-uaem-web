@@ -59,19 +59,25 @@ window.addEventListener('DOMContentLoaded', async () => {
     updateUserUI();
     updateCartBadge();
     
-    // Cargar productos y notificaciones desde Supabase
+    // Cargar productos, notificaciones y compras desde Supabase
     await fetchProductsFromSupabase();
     await fetchUserNotifications();
+    await syncComprasFromSupabase();
     
-    // Activar escucha en tiempo real (Advertencias y Suspensiones)
+    // Activar escucha en tiempo real (Advertencias, Suspensiones y Compras)
     initRealtimeListeners();
+    initComprasRealtimeSync();
     
     checkVendorStatus();
     
     if (document.getElementById('productsGrid')) renderProducts();
     if (document.getElementById('myPurchasesTableBody')) renderMyPurchases();
     if (document.getElementById('myProductsTableBody')) renderMyProducts();
+    if (document.getElementById('salesHistoryTableBody')) renderSalesHistory();
     if (document.getElementById('cartTableBody')) renderCart();
+    if (document.getElementById('salesChart') && typeof initAdminDashboard === 'function') {
+      initAdminDashboard();
+    }
   }
 });
 
@@ -976,6 +982,9 @@ async function checkout() {
   const selectedMethod = result.value;
   const now = new Date();
   const dateStr = now.toLocaleDateString('es-MX') + ' ' + now.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
+  const buyerEmailClean = (currentUser?.email || '').toLowerCase().trim();
+  const buyerNameClean = currentUser?.name || buyerEmailClean || 'Comprador UAEM';
+  const buyerFacultyClean = currentUser?.faculty || 'Comunidad UAEM';
 
   for (const cartItem of cart) {
     const prod = products.find(p => p.id === cartItem.id);
@@ -991,14 +1000,20 @@ async function checkout() {
       ''
     ).toLowerCase().trim();
 
+    const sellerNameClean = cartItem.seller || (prod && prod.seller) || 'Vendedor UAEM';
+    const sellerFacultyClean = cartItem.faculty || (prod && prod.faculty) || 'Comunidad UAEM';
+    const qtyNum = Number(cartItem.qty || 1);
+    const priceNum = Number(cartItem.price || 0);
+    const subtotalNum = priceNum * qtyNum;
+    const deliveryPointClean = cartItem.deliveryPoint || `Botón de Pánico - ${sellerFacultyClean}`;
+
     if (targetSellerEmail && supabaseClient) {
-      const subtotal = Number(cartItem.price || 0) * Number(cartItem.qty || 1);
       const { error: notifError } = await supabaseClient
         .from('notificaciones')
         .insert([{
           usuario_email: targetSellerEmail,
           titulo: '¡Producto vendido!',
-          mensaje: `${currentUser.name || currentUser.email} compró ${cartItem.qty} ${cartItem.qty === 1 ? 'unidad' : 'unidades'} de "${cartItem.name}" ($${subtotal.toFixed(2)} MXN) — Pago: ${selectedMethod}.`,
+          mensaje: `${buyerNameClean} compró ${qtyNum} ${qtyNum === 1 ? 'unidad' : 'unidades'} de "${cartItem.name}" ($${subtotalNum.toFixed(2)} MXN) — Pago: ${selectedMethod}.`,
           tipo: 'success',
           leida: false
         }]);
@@ -1008,21 +1023,46 @@ async function checkout() {
       }
     }
 
+    // Guardar compra en Supabase para sincronizar entre PC y móvil con la misma cuenta
+    if (supabaseClient && buyerEmailClean) {
+      const { error: compraError } = await supabaseClient
+        .from('compras')
+        .insert([{
+          comprador_email: buyerEmailClean,
+          comprador_nombre: buyerNameClean,
+          vendedor_email: targetSellerEmail,
+          vendedor_nombre: sellerNameClean,
+          producto_id: cartItem.id ? String(cartItem.id) : null,
+          producto_nombre: cartItem.name,
+          cantidad: qtyNum,
+          precio_unitario: priceNum,
+          total: subtotalNum,
+          metodo_pago: selectedMethod,
+          horario: cartItem.schedule || 'Matutino',
+          punto_entrega: deliveryPointClean,
+          fecha_texto: dateStr
+        }]);
+
+      if (compraError) {
+        console.error('Error guardando compra en Supabase:', compraError);
+      }
+    }
+
     salesHistory.unshift({
       id: Date.now() + Math.random(),
       date: dateStr,
-      seller: cartItem.seller,
-      sellerFaculty: cartItem.faculty,
+      seller: sellerNameClean,
+      sellerFaculty: sellerFacultyClean,
       sellerEmail: targetSellerEmail,
-      buyer: currentUser.name,
-      buyerFaculty: currentUser.faculty,
-      buyerEmail: currentUser.email,
+      buyer: buyerNameClean,
+      buyerFaculty: buyerFacultyClean,
+      buyerEmail: buyerEmailClean,
       productName: cartItem.name,
-      qty: cartItem.qty,
+      qty: qtyNum,
       schedule: cartItem.schedule,
-      deliveryPoint: cartItem.deliveryPoint || `Botón de Pánico - ${cartItem.faculty}`,
+      deliveryPoint: deliveryPointClean,
       paymentMethod: selectedMethod,
-      total: cartItem.price * cartItem.qty
+      total: subtotalNum
     });
   }
 
@@ -1031,10 +1071,11 @@ async function checkout() {
   localStorage.setItem('uaem_cart', JSON.stringify(cart));
 
   await fetchProductsFromSupabase();
+  await syncComprasFromSupabase();
   await Swal.fire({
     icon: 'success',
     title: '¡Pedido Confirmado!',
-    text: `Pago registrado mediante: ${selectedMethod}. Stock actualizado en Supabase.`,
+    text: `Pago registrado mediante: ${selectedMethod}. Stock y compras sincronizados en Supabase.`,
     confirmButtonColor: '#002b49'
   });
 
@@ -1044,7 +1085,9 @@ async function checkout() {
 function renderMyPurchases() {
   const tbody = document.getElementById('myPurchasesTableBody');
   if (!tbody) return;
-  const myPurchases = salesHistory.filter(s => s.buyer === currentUser.name || s.buyerEmail === currentUser.email);
+  const myPurchases = salesHistory.filter(
+    s => s.buyer === currentUser?.name || (s.buyerEmail && s.buyerEmail.toLowerCase() === (currentUser?.email || '').toLowerCase())
+  );
   if (myPurchases.length === 0) {
     tbody.innerHTML = `<tr><td colspan="7" class="empty-state"><i class="fa-solid fa-bag-shopping"></i><p>Aún no has realizado ninguna compra en la plataforma.</p></td></tr>`;
     return;
@@ -1059,7 +1102,7 @@ function renderMyPurchases() {
         <span style="font-size:0.75rem; color:#059669; font-weight:700;"><i class="fa-solid fa-shield-cat"></i> ${p.deliveryPoint}</span>
       </td>
       <td><span class="pay-badge ${p.paymentMethod === 'Efectivo' ? 'pay-cash' : 'pay-transfer'}"><i class="fa-solid ${p.paymentMethod === 'Efectivo' ? 'fa-money-bill-wave' : 'fa-mobile-screen-button'}"></i> ${p.paymentMethod}</span></td>
-      <td><strong style="color:var(--uaem-blue-main);">$${p.total.toFixed(2)} MXN</strong></td>
+      <td><strong style="color:var(--uaem-blue-main);">$${Number(p.total || 0).toFixed(2)} MXN</strong></td>
       <td><span class="status-badge-success"><i class="fa-solid fa-circle-check"></i> Comprado</span></td>
     </tr>`).join('');
 }
@@ -1107,7 +1150,9 @@ function renderMyProducts() {
 function renderSalesHistory() {
   const tbody = document.getElementById('salesHistoryTableBody');
   if (!tbody) return;
-  const mySales = salesHistory.filter(s => s.seller === currentUser.name || s.sellerEmail === currentUser.email);
+  const mySales = salesHistory.filter(
+    s => s.seller === currentUser?.name || (s.sellerEmail && s.sellerEmail.toLowerCase() === (currentUser?.email || '').toLowerCase())
+  );
   if (mySales.length === 0) {
     tbody.innerHTML = `<tr><td colspan="6" class="empty-state"><i class="fa-solid fa-receipt"></i><p>Aún no has registrado ventas de tus productos.</p></td></tr>`;
     return;
@@ -1119,7 +1164,7 @@ function renderSalesHistory() {
       <td><strong>${s.productName}</strong></td>
       <td>${s.qty} pza(s)</td>
       <td><span class="pay-badge ${s.paymentMethod === 'Efectivo' ? 'pay-cash' : 'pay-transfer'}"><i class="fa-solid ${s.paymentMethod === 'Efectivo' ? 'fa-money-bill-wave' : 'fa-mobile-screen-button'}"></i> ${s.paymentMethod}</span></td>
-      <td><strong style="color:var(--uaem-blue-main);">$${s.total.toFixed(2)} MXN</strong></td>
+      <td><strong style="color:var(--uaem-blue-main);">$${Number(s.total || 0).toFixed(2)} MXN</strong></td>
     </tr>`).join('');
 }
 
@@ -1758,9 +1803,6 @@ saveProductSubmit = async function (e) {
 };
 
 
-// Permitir editar URL o subir nueva foto con cajoncito accesible en móvil
-// Permitir editar URL, subir nueva foto con cajoncito accesible en móvil y cambiar Punto de Entrega
-// Permitir editar URL, subir nueva foto con cajoncito accesible en móvil y cambiar Punto de Entrega
 const _origOpenEditModalWithPhoto = openEditProductModal;
 openEditProductModal = function (id) {
   const prod = products.find(p => p.id === id);
@@ -1908,7 +1950,6 @@ openEditProductModal = function (id) {
     });
   });
 };
-
 
 
 function openProductDetailModal(id) {
@@ -2059,8 +2100,6 @@ async function fetchRealActiveUsersCount() {
     console.warn('No se pudo consultar tabla usuarios directamente:', err);
   }
 
-  // Respaldo si RLS bloquea lectura de tabla usuarios o no hay filas visibles:
-  // cuenta correos/vendedores únicos registrados en productos y ventas
   if (!activeCount) {
     const uniqueUsers = new Set();
     if (Array.isArray(window.products)) {
@@ -2088,7 +2127,6 @@ function buildDailySalesSeries(salesList) {
 
   (salesList || []).forEach(sale => {
     const rawDate = sale.date || '';
-    // Soporta formatos como "24/11/2026 10:30" o ISO "2026-11-24..."
     const dayKey = rawDate.includes(' ')
       ? rawDate.split(' ')[0]
       : (rawDate.slice(0, 10) || 'Sin fecha');
@@ -2187,12 +2225,10 @@ async function initAdminDashboard() {
 window.addEventListener('DOMContentLoaded', () => {
   if (!document.getElementById('salesChart')) return;
 
-  // Pequeño retraso para asegurar que main.js ya cargó products y salesHistory
   setTimeout(() => {
     initAdminDashboard();
   }, 150);
 
-  // Re-dibujar gráfica cuando cambie el contraste o la fuente en accesibilidad
   const accPanel = document.getElementById('accessibilityPanel');
   if (accPanel) {
     accPanel.addEventListener('click', () => {
@@ -2235,14 +2271,12 @@ loginUserSubmit = async function (e) {
     });
   }
 
-  // Si ya pasó el tiempo de bloqueo, reiniciamos contador
   if (state.lockUntil && now >= state.lockUntil) {
     saveLoginLockState({ attempts: 0, lockUntil: 0 });
   }
 
   await _origLoginUserSubmit(e);
 
-  // Si tras ejecutar el login NO se inició sesión (currentUser sigue null), sumamos intento fallido
   if (!currentUser) {
     const updated = getLoginLockState();
     updated.attempts = (updated.attempts || 0) + 1;
@@ -2267,7 +2301,6 @@ loginUserSubmit = async function (e) {
       });
     }
   } else {
-    // Login exitoso: limpiar intentos
     saveLoginLockState({ attempts: 0, lockUntil: 0 });
   }
 };
@@ -2330,9 +2363,6 @@ window.addEventListener('DOMContentLoaded', () => {
 });
 
 
-// ==========================================
-// NOTIFICACIÓN AL VENDEDOR AL CONCRETAR VENTA
-// ==========================================
 // ==========================================
 // NOTIFICACIÓN AL VENDEDOR AL CONCRETAR VENTA (CORREGIDO)
 // ==========================================
@@ -2406,7 +2436,6 @@ async function notifySellerOfSale({
 
       const promise = originalSwalFire(...swalArgs);
 
-      // Cuando se muestra el modal de "¡Pedido Confirmado!", se acaba de completar la compra
       if (opts && opts.title === '¡Pedido Confirmado!' && !notificationDispatched) {
         notificationDispatched = true;
         Swal.fire = originalSwalFire;
@@ -2440,7 +2469,6 @@ async function notifySellerOfSale({
     try {
       return originalCheckout.apply(this, args);
     } finally {
-      // Restauramos Swal.fire si el usuario canceló o cerró sin llegar a "¡Pedido Confirmado!"
       setTimeout(() => {
         if (!notificationDispatched) {
           Swal.fire = originalSwalFire;
@@ -2492,7 +2520,6 @@ async function notifySellerOfSale({
     }
   }
 
-  // 1. Canal Realtime dedicado y único por sesión (sin filtro estricto que falle por mayúsculas)
   const channelName = `notificaciones-live-${myEmail.replace(/[^a-z0-9]/g, '_')}-${Date.now()}`;
   supabaseClient
     .channel(channelName)
@@ -2513,7 +2540,6 @@ async function notifySellerOfSale({
       }
     });
 
-  // 2. Respaldo automático cada 6 segundos y al regresar a la pestaña
   async function syncNotificationsFallback() {
     if (document.hidden) return;
     try {
@@ -2525,7 +2551,6 @@ async function notifySellerOfSale({
 
       if (error || !Array.isArray(data)) return;
 
-      // Detectar notificaciones nuevas que no habíamos visto
       const brandNew = data.filter(item => {
         const key = String(item.id ?? `${item.titulo || ''}|${item.mensaje || ''}|${item.created_at || ''}`);
         return !seenNotifIds.has(key);
@@ -2536,7 +2561,6 @@ async function notifySellerOfSale({
         renderUserNotifications();
       }
 
-      // Si ya había notificaciones cargadas antes, avisar de la más reciente nueva
       if (brandNew.length > 0 && seenNotifIds.size > 0) {
         await notifyIfNew(brandNew[0]);
       } else {
@@ -2555,6 +2579,108 @@ async function notifySellerOfSale({
     if (!document.hidden) syncNotificationsFallback();
   });
 })();
+
+
+// ==========================================
+// SINCRONIZACIÓN DE COMPRAS EN TIEMPO REAL (PC <-> MÓVIL)
+// ==========================================
+function mapCompraRowToSaleItem(row) {
+  return {
+    id: row.id,
+    date: row.fecha_texto || (row.created_at ? new Date(row.created_at).toLocaleString('es-MX') : ''),
+    seller: row.vendedor_nombre || 'Vendedor UAEM',
+    sellerFaculty: 'Comunidad UAEM',
+    sellerEmail: (row.vendedor_email || '').toLowerCase().trim(),
+    buyer: row.comprador_nombre || row.comprador_email || 'Comprador UAEM',
+    buyerFaculty: 'Comunidad UAEM',
+    buyerEmail: (row.comprador_email || '').toLowerCase().trim(),
+    productName: row.producto_nombre || 'Producto UAEM',
+    qty: Number(row.cantidad || 1),
+    schedule: row.horario || 'Matutino',
+    deliveryPoint: row.punto_entrega || 'Botón de Pánico - Campus UAEM',
+    paymentMethod: row.metodo_pago || 'Efectivo',
+    total: Number(row.total || 0)
+  };
+}
+
+async function syncComprasFromSupabase() {
+  if (!supabaseClient || !currentUser) return;
+  const myEmail = (currentUser.email || '').toLowerCase().trim();
+  const isAdmin = myEmail === 'admin@sistema.uaem' || currentUser.role?.includes('Administrador');
+
+  try {
+    let query = supabaseClient
+      .from('compras')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (!isAdmin && myEmail) {
+      query = query.or(`comprador_email.eq.${myEmail},vendedor_email.eq.${myEmail}`);
+    }
+
+    const { data, error } = await query;
+    if (error || !Array.isArray(data)) return;
+
+    const remoteMapped = data.map(mapCompraRowToSaleItem);
+
+    // Conservar compras locales que aún no estén en Supabase y fusionar sin duplicar
+    const localOnly = (Array.isArray(salesHistory) ? salesHistory : []).filter(localItem => {
+      return !remoteMapped.some(rem =>
+        rem.productName === localItem.productName &&
+        rem.date === localItem.date &&
+        Number(rem.total) === Number(localItem.total)
+      );
+    });
+
+    salesHistory = [...localOnly, ...remoteMapped];
+    window.salesHistory = salesHistory;
+    localStorage.setItem('uaem_sales_history', JSON.stringify(salesHistory));
+
+    if (document.getElementById('myPurchasesTableBody')) renderMyPurchases();
+    if (document.getElementById('salesHistoryTableBody')) renderSalesHistory();
+    if (document.getElementById('salesChart') && typeof initAdminDashboard === 'function') {
+      initAdminDashboard();
+    }
+  } catch (err) {
+    console.warn('Error sincronizando compras desde Supabase:', err);
+  }
+}
+
+let comprasLiveChannel = null;
+
+function initComprasRealtimeSync() {
+  if (!supabaseClient || !currentUser) return;
+  const myEmail = (currentUser.email || '').toLowerCase().trim();
+  if (!myEmail) return;
+
+  if (comprasLiveChannel) {
+    supabaseClient.removeChannel(comprasLiveChannel);
+    comprasLiveChannel = null;
+  }
+
+  const chName = `compras-live-${myEmail.replace(/[^a-z0-9]/g, '_')}-${Date.now()}`;
+  comprasLiveChannel = supabaseClient
+    .channel(chName)
+    .on(
+      'postgres_changes',
+      { event: 'INSERT', schema: 'public', table: 'compras' },
+      async () => {
+        await syncComprasFromSupabase();
+        await fetchProductsFromSupabase();
+        if (document.getElementById('productsGrid')) renderProducts();
+        if (document.getElementById('myProductsTableBody')) renderMyProducts();
+      }
+    )
+    .subscribe();
+
+  setInterval(() => {
+    if (!document.hidden) syncComprasFromSupabase();
+  }, 6000);
+
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) syncComprasFromSupabase();
+  });
+}
 
 
 function normalizeMobileAdminHeader() {
