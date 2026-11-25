@@ -1846,3 +1846,35 @@ body.is-admin-user #btnNavMyProducts {
     padding-top: 145px !important;
   }
 }
+
+
+/* ==========================================
+   VISIBILIDAD COMPLETA SUPERIOR EN MÓVIL (HEADER, BOTONES Y BÚSQUEDA)
+   ========================================== */
+@media (max-width: 768px) {
+  header {
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+  }
+
+  header .navbar,
+  header .user-bar {
+    width: 100% !important;
+    max-width: 100% !important;
+    overflow: visible !important;
+  }
+
+  /* Margen superior amplio para que el header fijo no tape títulos, botones ni buscador */
+  body:not(.auth-body) main {
+    padding-top: 235px !important;
+    overflow-x: visible !important;
+  }
+
+  /* Asegura que la barra de búsqueda y filtros queden visibles y sin recortarse arriba */
+  main .controls-card {
+    margin-top: 4px !important;
+    position: relative !important;
+    z-index: 1 !important;
+  }
+}
